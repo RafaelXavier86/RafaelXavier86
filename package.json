@@ -1,0 +1,11 @@
+{
+  "name": "core-tools-iatf",
+  "version": "1.0.0",
+  "description": "Gestão da Qualidade Automotiva — Core Tools (APQP, PPAP, FMEA, MSA, SPC) e IATF 16949",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "python3 -m http.server 8080"
+  },
+  "license": "UNLICENSED"
+}
