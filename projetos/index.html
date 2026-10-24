@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gestão de Projetos Industriais</title>
+  <meta name="description" content="Gestão de projetos industriais (novo produto, melhoria contínua, manutenção, CAPEX, segurança e automação) com base no PMBOK Guide 8ª edição.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f6a73'/%3E%3Cpath d='M7 22h4V14H7zM14 22h4V9h-4zM21 22h4v-6h-4z' fill='white'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button id="menu-toggle" class="btn-icon menu-toggle" aria-label="Abrir menu">☰</button>
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-text">
+        <strong>Gestão de Projetos Industriais</strong>
+        <small id="brand-company"></small>
+      </span>
+    </div>
+    <span class="topbar-tag mono">PMBOK® 8 · Preditivo · Híbrido · Ágil</span>
+  </header>
+  <div class="layout">
+    <nav id="nav" class="sidebar" aria-label="Menu principal"></nav>
+    <main id="main" class="content"></main>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="js/calc.js"></script>
+  <script src="js/pmbok.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/sample.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/projeto.js"></script>
+  <script>App.start();</script>
+</body>
+</html>

@@ -2,6 +2,8 @@
 
 Aplicação web para **lançamento e relatório** dos registros de qualidade automotiva, cobrindo as ferramentas do **Core Tools (AIAG)** e os requisitos da **IATF 16949**.
 
+> Também neste repositório: **[Gestão de Projetos Industriais — PMBOK 8](projetos/README.md)** (`projetos/`), para novos produtos, melhorias, manutenção, CAPEX, segurança e automação.
+
 Funciona direto no navegador, sem instalação nem servidor de banco de dados. Os dados ficam salvos no navegador (localStorage), e o próprio sistema faz backup e restauração em arquivo JSON.
 
 ## Módulos
@@ -51,6 +53,7 @@ js/modules/*.js     Um arquivo por módulo (campos, cálculos, relatórios)
 js/pages.js         Painel, Relatórios e Configurações
 js/sample.js        Dados de exemplo
 tests/              Testes dos cálculos (npm test)
+projetos/           App de Gestão de Projetos Industriais (PMBOK 8)
 ```
 
 ## Testes
