@@ -60,11 +60,15 @@
   function route() {
     if (ignoreNextHash) { ignoreNextHash = false; return; }
     if (dirty && location.hash !== currentHash) {
-      if (!window.confirm('Existem alterações não salvas. Deseja sair mesmo assim?')) {
-        ignoreNextHash = true;
-        location.hash = currentHash;
-        return;
-      }
+      // Volta para o registro e pergunta (diálogos nativos não funcionam em todos os ambientes)
+      const target = location.hash;
+      ignoreNextHash = true;
+      location.hash = currentHash;
+      UI.modal('Alterações não salvas', UI.el('p', null, 'Existem alterações não salvas neste registro. Deseja sair mesmo assim?'), [
+        { label: 'Continuar editando' },
+        { label: 'Sair sem salvar', class: 'btn-danger', onClick: () => { dirty = false; location.hash = target; } },
+      ]);
+      return;
     }
     dirty = false;
     currentHash = location.hash;
@@ -254,6 +258,11 @@
     document.getElementById('menu-toggle').addEventListener('click', () => document.body.classList.toggle('nav-open'));
     const s = Store.settings();
     document.getElementById('brand-company').textContent = s.empresa || '';
+    // Na prévia publicada, abre já com dados de exemplo no primeiro acesso
+    if (UI.embedded && Store.isEmpty() && !s.exemploCarregado) {
+      Sample.load();
+      Store.saveSettings({ exemploCarregado: true });
+    }
     window.addEventListener('hashchange', route);
     window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
     route();

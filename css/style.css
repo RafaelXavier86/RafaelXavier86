@@ -50,6 +50,31 @@
     color-scheme: dark;
   }
 }
+:root[data-theme="dark"] {
+  --bg: #0f141b;
+  --surface: #171e27;
+  --surface-2: #1c2530;
+  --border: #2b3644;
+  --text: #e6ebf1;
+  --muted: #97a3b2;
+  --primary: #5b95ec;
+  --primary-ink: #0b1220;
+  --primary-soft: #1b2b44;
+  --ok: #5cc98a;
+  --ok-soft: #15301f;
+  --warn: #e7b04f;
+  --warn-soft: #34280f;
+  --bad: #f07a6e;
+  --bad-soft: #3a1714;
+  --neutral-soft: #222c38;
+  --chart-series: #6ea3f0;
+  --chart-limit: #f07a6e;
+  --chart-center: #5cc98a;
+  --chart-spec: #e7b04f;
+  --shadow: none;
+  color-scheme: dark;
+}
+
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -69,7 +94,7 @@ h3 { font-size: .98rem; margin: 0 0 .5rem; }
 
 /* ---------- Estrutura ---------- */
 .topbar {
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
   display: flex; align-items: center; gap: 12px;
   height: 56px; padding: 0 16px;
   background: var(--surface); border-bottom: 1px solid var(--border);
@@ -229,6 +254,16 @@ table.grid input, table.grid select { min-height: 32px; padding: 5px 7px; font-s
 /* ---------- Modal e avisos ---------- */
 .modal-overlay { position: fixed; inset: 0; background: rgba(10, 15, 25, .45); display: grid; place-items: center; z-index: 50; padding: 16px; }
 .modal { background: var(--surface); border-radius: 12px; width: min(560px, 100%); max-height: 90vh; overflow: auto; border: 1px solid var(--border); }
+.modal-wide { width: min(1000px, 100%); }
+.copy-box { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .8rem; white-space: pre; }
+.print-preview { border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; }
+.print-header, .print-footer { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; }
+.print-header { border-bottom: 2px solid var(--text); padding-bottom: 8px; margin-bottom: 12px; }
+.print-meta { text-align: right; }
+.print-footer { margin-top: 28px; }
+.print-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 14px; margin: 10px 0; }
+.print-fields dt { font-weight: 600; color: var(--muted); font-size: .76rem; }
+.print-fields dd { margin: 0 0 4px; }
 .modal-head, .modal-foot { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; }
 .modal-head h2 { margin: 0; }
 .modal-body { padding: 0 16px 8px; }

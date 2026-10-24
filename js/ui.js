@@ -204,10 +204,10 @@
 
   // ---------- Modal, confirmação e avisos ----------
 
-  function modal(title, content, actions) {
+  function modal(title, content, actions, extraClass) {
     const overlay = el('div', { class: 'modal-overlay' });
     const close = () => overlay.remove();
-    const box = el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true' },
+    const box = el('div', { class: `modal ${extraClass || ''}`, role: 'dialog', 'aria-modal': 'true' },
       el('div', { class: 'modal-head' }, el('h2', null, title), el('button', { class: 'btn-icon', onclick: close, title: 'Fechar' }, '✕')),
       el('div', { class: 'modal-body' }, content),
       el('div', { class: 'modal-foot' }, (actions || []).map((a) => el('button', {
@@ -237,7 +237,32 @@
 
   // ---------- Exportação ----------
 
+  // Dentro de um iframe (ex.: prévia publicada) downloads e impressão costumam ser bloqueados;
+  // nesse caso o conteúdo é exibido para copiar ou visualizar.
+  const embedded = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+
+  function copyBox(title, text, hint) {
+    const area = el('textarea', { class: 'copy-box', rows: 12, readonly: true });
+    area.value = text;
+    modal(title, el('div', { class: 'stack' }, el('p', { class: 'muted' }, hint), area), [
+      { label: 'Fechar' },
+      {
+        label: 'Copiar', class: 'btn-primary', onClick: () => {
+          const fallback = () => { area.focus(); area.select(); toast('Texto selecionado: use Ctrl+C para copiar.', 'warn'); };
+          try {
+            navigator.clipboard.writeText(text).then(() => toast('Copiado para a área de transferência.'), fallback);
+          } catch (e) { fallback(); }
+          return false;
+        },
+      },
+    ], 'modal-wide');
+  }
+
   function download(filename, content, mime) {
+    if (embedded) {
+      copyBox(filename, content, 'Nesta versão de teste o navegador não permite baixar arquivos. Copie o conteúdo abaixo e salve-o em um arquivo de texto.');
+      return;
+    }
     const blob = new Blob([content], { type: mime });
     const a = el('a', { href: URL.createObjectURL(blob), download: filename });
     document.body.appendChild(a);
@@ -253,6 +278,11 @@
       if (/[";\n\r]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
       return s;
     };
+    if (embedded) {
+      const tsv = [headers, ...rows].map((r) => r.map((v) => (v === null || v === undefined ? '' : String(typeof v === 'number' ? String(v).replace('.', ',') : v).replace(/[\t\r\n]+/g, ' '))).join('\t')).join('\n');
+      copyBox('Exportar para Excel', tsv, `${rows.length} linha(s). Nesta versão de teste o download está bloqueado: clique em Copiar e cole na célula A1 de uma planilha do Excel; as colunas são separadas automaticamente.`);
+      return;
+    }
     const csv = [headers, ...rows].map((r) => r.map(esc).join(';')).join('\r\n');
     download(filename, '﻿' + csv, 'text/csv;charset=utf-8');
   }
@@ -261,14 +291,21 @@
   function printReport(title, content) {
     const s = Store.settings();
     const area = document.getElementById('print-area');
-    area.replaceChildren(el('div', { class: 'print-doc' },
+    const doc = el('div', { class: 'print-doc' },
       el('header', { class: 'print-header' },
         el('div', null, el('strong', null, s.empresa || ''), el('div', { class: 'muted' }, 'Sistema de Gestão da Qualidade — IATF 16949')),
         el('div', { class: 'print-meta' }, el('div', null, title), el('div', { class: 'muted' }, 'Emitido em ' + new Date().toLocaleString('pt-BR')))),
       content,
       el('footer', { class: 'print-footer' },
         el('div', null, 'Elaborado por: ____________________'),
-        el('div', null, 'Aprovado por: ____________________'))));
+        el('div', null, 'Aprovado por: ____________________')));
+    if (embedded) {
+      modal('Prévia do relatório', el('div', { class: 'stack' },
+        el('div', { class: 'alert alert-warn' }, 'Nesta versão de teste o navegador não permite imprimir. No app instalado (index.html), este botão abre a impressão, onde você pode salvar em PDF.'),
+        el('div', { class: 'print-preview' }, doc)), [{ label: 'Fechar' }], 'modal-wide');
+      return;
+    }
+    area.replaceChildren(doc);
     document.body.classList.add('printing');
     const done = () => { document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
     window.addEventListener('afterprint', done);
@@ -370,7 +407,7 @@
   }
 
   window.UI = {
-    el, append, add, fill, fmt, fmtDate, today, badge, levelOf, input, formGrid, rowsEditor, table,
+    embedded, el, append, add, fill, fmt, fmtDate, today, badge, levelOf, input, formGrid, rowsEditor, table,
     modal, confirm, toast, download, downloadCSV, printReport, controlChart, histogram, pareto,
   };
 })();
