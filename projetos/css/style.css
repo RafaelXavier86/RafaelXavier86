@@ -141,7 +141,14 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .nav-link.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .nav-icon { width: 18px; text-align: center; font-family: var(--font-mono); color: var(--muted); }
 .nav-link.active .nav-icon { color: var(--accent); }
-.nav-proj { font-size: .86rem; padding-block: 6px; }
+.nav-proj { font-size: .86rem; padding-block: 6px; padding-left: 18px; }
+.nav-client {
+  display: block; width: 100%; margin-top: 6px; padding: 4px 10px; border: 0; border-radius: 6px; background: none;
+  font: 600 .78rem var(--font-body); color: var(--muted); text-align: left; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+button.nav-client:hover { color: var(--ink); background: var(--surface-2); }
+.nav-client.active { color: var(--accent); background: var(--accent-soft); }
 .nav-proj .pill { padding: 0; background: none; }
 .nav-proj-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
@@ -176,6 +183,19 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .empty { color: var(--muted); padding: 14px; background: var(--surface-2); border-radius: 6px; border: 1px dashed var(--line); }
 .empty-state { align-items: flex-start; max-width: 760px; }
 .legend { font-size: .8rem; }
+
+/* Caminho (cliente › projeto) */
+.crumbs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px; font-size: .84rem; color: var(--muted); }
+.crumb { border: 0; background: none; padding: 0; font: 600 .84rem var(--font-body); color: var(--accent); cursor: pointer; }
+.crumb:hover { text-decoration: underline; }
+.page-head h1 + .chips { margin-top: 8px; }
+.mix { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.info-grid { margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 20px; }
+.info-grid .full { grid-column: 1 / -1; }
+.info-grid dt { font-size: .74rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.info-grid dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.clickable-li { cursor: pointer; border-radius: 6px; padding: 4px; margin: -4px; }
+.clickable-li:hover { background: var(--surface-2); }
 
 /* ---------- Botões ---------- */
 .btn {
@@ -218,7 +238,7 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .sq-atencao { background: var(--hazard); opacity: 1; }
 .sq-critico { background: var(--bad); opacity: 1; }
 
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .kpis-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .kpi {
   display: flex; flex-direction: column; gap: 2px; padding: 14px 16px;

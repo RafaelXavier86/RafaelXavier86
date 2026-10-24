@@ -33,15 +33,15 @@
     p.marcos.forEach((m) => { if (m.data < hoje) { m.status = 'aprovado'; m.decisao = 'Aprovado para seguir'; } });
   }
 
-  function npd(hoje) {
+  function npd(hoje, C) {
     const inicio = addDays(hoje, -75);
     const m = Ref.buildFromTemplate('npd', inicio);
     const p = {
-      id: Ref.uid(), codigo: 'PRJ-EX-001', nome: 'Suporte estampado do eixo traseiro — Montadora A',
+      id: Ref.uid(), codigo: 'PRJ-EX-001', nome: 'Suporte estampado do eixo traseiro',
       tipo: 'npd', abordagem: 'hibrido', status: 'andamento', area: 'Estamparia', fase: 'execucao',
-      gerente: 'Marina Couto', patrocinador: 'Diretor Industrial', cliente: 'Montadora A (externo)',
+      gerente: 'Marina Couto', patrocinador: 'Diretor Industrial', clienteId: C.alfa,
       inicio, fim: m.fim, orcamento: 420000, aprovadoEm: inicio,
-      justificativa: 'Novo item de alto volume (180 mil peças/ano) para a plataforma 2027 da Montadora A. Consolida a empresa como fornecedora de estampados estruturais.',
+      justificativa: 'Novo item de alto volume (180 mil peças/ano) para a plataforma 2027 da Montadora Alfa. Consolida a empresa como fornecedora de estampados estruturais.',
       objetivos: 'Aprovar o PPAP nível 3 até o Gate 4 e iniciar a produção seriada (SOP) na data contratada, com custo de peça dentro da cotação.',
       escopoIncluido: 'Projeto do produto (co-design com o cliente), ferramental progressivo, dispositivo de solda, PPAP nível 3 e preparação da linha 2 da estamparia.',
       escopoExcluido: 'Embalagem retornável (fornecida pelo cliente) e pintura KTL (terceirizada).',
@@ -62,7 +62,7 @@
         { id: Ref.uid(), nome: 'Eduardo Sato', papel: 'Comprador', area: 'Suprimentos', alocacao: 20, custoHora: 85, contato: 'ramal 2120' },
       ],
       partes: [
-        { id: Ref.uid(), nome: 'Engenharia do cliente', cargo: 'Montadora A', poder: 5, interesse: 5, atitude: 'apoiador', desejada: 'lider', estrategia: 'Reunião técnica semanal e acesso ao status do PPAP', frequencia: 'Semanal' },
+        { id: Ref.uid(), nome: 'Engenharia do cliente', cargo: 'Montadora Alfa', poder: 5, interesse: 5, atitude: 'apoiador', desejada: 'lider', estrategia: 'Reunião técnica semanal e acesso ao status do PPAP', frequencia: 'Semanal' },
         { id: Ref.uid(), nome: 'Diretor Industrial', cargo: 'Patrocinador', poder: 5, interesse: 4, atitude: 'apoiador', desejada: 'apoiador', estrategia: 'Relatório de status e decisão nos gates', frequencia: 'Quinzenal' },
         { id: Ref.uid(), nome: 'Gerente de Produção', cargo: 'Estamparia', poder: 4, interesse: 3, atitude: 'neutro', desejada: 'apoiador', estrategia: 'Envolver no try-out e no plano de capacidade da prensa 630 t', frequencia: 'Semanal' },
         { id: Ref.uid(), nome: 'Usina de aço', cargo: 'Fornecedor DP600', poder: 3, interesse: 2, atitude: 'neutro', desejada: 'apoiador', estrategia: 'Programação firme de pedidos com 60 dias', frequencia: 'Mensal' },
@@ -102,13 +102,13 @@
     return p;
   }
 
-  function melhoria(hoje) {
+  function melhoria(hoje, C) {
     const inicio = addDays(hoje, -40);
     const m = Ref.buildFromTemplate('melhoria', inicio);
     const p = {
       id: Ref.uid(), codigo: 'PRJ-EX-002', nome: 'Redução de refugo na solda robotizada — Célula 3',
       tipo: 'melhoria', abordagem: 'hibrido', status: 'andamento', area: 'Soldagem', fase: 'execucao',
-      gerente: 'Juliana Prado', patrocinador: 'Gerente de Produção', cliente: 'Produção (interno)',
+      gerente: 'Juliana Prado', patrocinador: 'Gerente de Produção', clienteId: C.solda,
       inicio, fim: m.fim, orcamento: 45000, aprovadoEm: inicio,
       justificativa: 'Refugo de 4,2% na célula 3 gera R$ 38 mil/mês de custo da não qualidade e retrabalho no turno C.',
       objetivos: 'Reduzir o refugo da célula 3 de 4,2% para 1,5% em 3 meses e manter por 60 dias.',
@@ -148,13 +148,13 @@
     return p;
   }
 
-  function manutencao(hoje) {
+  function manutencao(hoje, C) {
     const inicio = addDays(hoje, -45);
     const m = Ref.buildFromTemplate('manutencao', inicio);
     const p = {
       id: Ref.uid(), codigo: 'PRJ-EX-003', nome: 'Parada anual — Prensa hidráulica 800 t',
       tipo: 'manutencao', abordagem: 'preditivo', status: 'andamento', area: 'Manutenção', fase: 'planejamento',
-      gerente: 'Anderson Faria', patrocinador: 'Gerente de Manutenção', cliente: 'Estamparia (interno)',
+      gerente: 'Anderson Faria', patrocinador: 'Gerente de Manutenção', clienteId: C.estamparia,
       inicio, fim: m.fim, orcamento: 310000, aprovadoEm: inicio,
       justificativa: 'Vazamentos no cilindro principal e desgaste das guias elevaram as paradas não programadas a 9% do tempo disponível.',
       objetivos: 'Executar a revisão geral em 11 dias de parada e devolver a prensa com MTBF > 400 h.',
@@ -202,13 +202,13 @@
     return p;
   }
 
-  function digital(hoje) {
+  function digital(hoje, C) {
     const inicio = addDays(hoje, -30);
     const m = Ref.buildFromTemplate('digital', inicio);
     const p = {
       id: Ref.uid(), codigo: 'PRJ-EX-004', nome: 'OEE em tempo real — Estamparia',
       tipo: 'digital', abordagem: 'adaptativo', status: 'andamento', area: 'Engenharia industrial', fase: 'execucao',
-      gerente: 'Thiago Moura', patrocinador: 'Gerente Industrial', cliente: 'Estamparia (interno)',
+      gerente: 'Thiago Moura', patrocinador: 'Gerente Industrial', clienteId: C.estamparia,
       inicio, fim: m.fim, orcamento: 95000, aprovadoEm: inicio,
       justificativa: 'O OEE é apurado em planilha no dia seguinte; as perdas por pequenas paradas não aparecem.',
       objetivos: 'Mostrar o OEE de 6 prensas em tempo real e reduzir pequenas paradas em 30%.',
@@ -250,7 +250,57 @@
     return p;
   }
 
+  // Projeto recém-aprovado de outro cliente, ainda no planejamento
+  function longarina(hoje, C) {
+    const inicio = addDays(hoje, -12);
+    const m = Ref.buildFromTemplate('npd', inicio);
+    const p = {
+      id: Ref.uid(), codigo: 'PRJ-EX-005', nome: 'Longarina soldada para semirreboque graneleiro',
+      tipo: 'npd', abordagem: 'hibrido', status: 'aprovado', area: 'Soldagem', fase: 'planejamento',
+      gerente: 'Rogério Lima', patrocinador: 'Diretor Comercial', clienteId: C.beta,
+      inicio, fim: m.fim, orcamento: 260000, aprovadoEm: addDays(hoje, -10),
+      justificativa: 'Cliente quer nacionalizar a longarina hoje importada; 2.400 conjuntos/ano.',
+      objetivos: 'Homologar a longarina no cliente em até 5 meses, com custo 12% abaixo do importado.',
+      escopoIncluido: 'Projeto de fabricação, dispositivos de solda, qualificação de soldadores (EPS/RQPS) e lote piloto.',
+      escopoExcluido: 'Pintura e montagem do semirreboque.',
+      entregaveis: 'Desenhos de fabricação, EPS aprovada, dispositivo, relatório de ensaio de fadiga.',
+      premissas: 'Aço ASTM A572 grau 50 disponível no distribuidor.', restricoes: 'Ensaio de fadiga em laboratório externo.',
+      criteriosSucesso: 'Aprovação no ensaio de fadiga e lote piloto sem não conformidade.',
+      sustentabilidade: 'Corte a plasma com nesting para reduzir sucata; nacionalização reduz emissões de transporte.',
+      indicadores: [{ id: Ref.uid(), nome: 'Custo do conjunto vs. importado', unidade: '%', base: 100, meta: 88, atual: '' }],
+      equipe: [
+        { id: Ref.uid(), nome: 'Rogério Lima', papel: 'Gerente de projeto', area: 'Engenharia de processos', alocacao: 20, custoHora: 120, contato: 'ramal 2231' },
+        { id: Ref.uid(), nome: 'Camila Rocha', papel: 'Engenheira de soldagem', area: 'Engenharia de processos', alocacao: 60, custoHora: 115, contato: 'ramal 2240' },
+      ],
+      partes: [
+        { id: Ref.uid(), nome: 'Engenharia da Beta', cargo: 'Cliente', poder: 5, interesse: 5, atitude: 'apoiador', desejada: 'apoiador', estrategia: 'Revisão quinzenal de projeto', frequencia: 'Quinzenal' },
+      ],
+      riscos: [
+        { id: Ref.uid(), codigo: 'R-01', descricao: 'Reprovação no ensaio de fadiga da junta soldada', categoria: 'Técnico', tipo: 'ameaca', probabilidade: 2, impacto: 5, resposta: 'mitigar', plano: 'Simulação FEA e corpo de prova antecipado', dono: 'Camila Rocha', gatilho: '', status: 'aberto' },
+      ],
+      marcos: m.marcos, sprints: m.sprints, tarefas: m.tarefas,
+      mudancas: [], questoes: [], licoes: [], raci: {}, encerramento: {},
+    };
+    simular(p.tarefas, hoje, { pessoas: ['Rogério Lima', 'Camila Rocha'], custo: (t) => Calc.duration(t) * 1100 });
+    fecharMarcos(p, hoje);
+    return p;
+  }
+
+  function clientes() {
+    const c = (nome, tipo, extra) => Object.assign({ id: Ref.uid(), nome, tipo }, extra);
+    return [
+      c('Montadora Alfa S.A.', 'externo', { segmento: 'Automotivo', cnpj: '', cidade: 'São Bernardo do Campo/SP', contatoNome: 'Ricardo Alves', contatoCargo: 'Engenharia de produto', email: '', telefone: '', observacoes: 'Exige PPAP nível 3 e relatório semanal de status nos lançamentos.' }),
+      c('Beta Implementos Rodoviários', 'externo', { segmento: 'Implementos rodoviários', cnpj: '', cidade: 'Caxias do Sul/RS', contatoNome: 'Sandra Kunz', contatoCargo: 'Compras técnicas', email: '', telefone: '', observacoes: '' }),
+      c('Operações — Estamparia', 'interno', { segmento: 'Interno', cidade: '', contatoNome: 'Gerente Industrial', contatoCargo: '', observacoes: 'Projetos de manutenção e digitalização da estamparia.' }),
+      c('Operações — Soldagem', 'interno', { segmento: 'Interno', cidade: '', contatoNome: 'Gerente de Produção', contatoCargo: '', observacoes: '' }),
+    ];
+  }
+
   window.Sample = {
-    projetos(hoje) { return [npd(hoje), melhoria(hoje), manutencao(hoje), digital(hoje)]; },
+    dados(hoje) {
+      const cs = clientes();
+      const C = { alfa: cs[0].id, beta: cs[1].id, estamparia: cs[2].id, solda: cs[3].id };
+      return { clientes: cs, projetos: [npd(hoje, C), melhoria(hoje, C), manutencao(hoje, C), digital(hoje, C), longarina(hoje, C)] };
+    },
   };
 })();

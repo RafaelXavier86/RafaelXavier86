@@ -15,8 +15,14 @@ Funciona direto no navegador, sem instalação nem servidor. Os dados ficam no n
 
 ## Módulos
 
-- **Portfólio**: projetos ativos com saúde geral, avanço real × planejado, IDP, IDC e uma faixa com os 7 domínios. Tem filtros e exportação em CSV.
-- **Novo projeto**: dados básicos, questionário de adaptação com a abordagem sugerida e estrutura inicial gerada pelo modelo do tipo de projeto:
+- **Painel geral**: resumo de tudo o que está em andamento, de todos os clientes:
+  - indicadores consolidados: projetos ativos, críticos e em atenção, orçamento e gasto, avanço médio ponderado pelo orçamento, riscos altos e tarefas atrasadas;
+  - quadro **por cliente**, com saúde, orçamento, avanço e próximo marco de cada um;
+  - **marcos e gates dos próximos 30 dias** (e os atrasados);
+  - **pontos de atenção**, com o motivo de cada projeto crítico ou em atenção;
+  - lista de **todos os projetos**, com filtros por cliente, tipo, abordagem e situação, e exportação em CSV.
+- **Clientes**: cadastro de clientes **externos** (montadoras, OEMs) e **internos** (áreas da fábrica, para manutenção e melhorias), com segmento, contato e observações. A página de cada cliente mostra os indicadores e todos os projetos dele. Um cliente com projetos não pode ser excluído.
+- **Novo projeto**: cliente (dá para cadastrar um novo na hora), dados básicos, questionário de adaptação com a abordagem sugerida e estrutura inicial gerada pelo modelo do tipo de projeto:
   - Novo produto: Stage-Gate + APQP, do conceito ao SOP, com DFMEA, PFMEA, ferramental e PPAP
   - Melhoria contínua: DMAIC, com tollgates
   - Manutenção: parada planejada, com APR, LOTO e comissionamento
@@ -54,7 +60,7 @@ Quando as tarefas não têm custo, o IDP usa o avanço físico ponderado pela du
 ## Como usar
 
 1. Abra `projetos/index.html` no navegador (Chrome, Edge ou Firefox), ou publique a pasta num servidor estático (por exemplo, GitHub Pages ou `npm start` na raiz e acesse `http://localhost:8080/projetos/`).
-2. No primeiro acesso, o sistema abre com **4 projetos de exemplo**. Use **Apagar exemplos e começar** quando quiser usar os seus.
+2. No primeiro acesso, o sistema abre com **4 clientes e 5 projetos de exemplo**. Use **Apagar exemplos e começar** quando quiser usar os seus.
 3. Faça **backups** em *Configurações e backup*, porque os dados ficam só no navegador em que foram lançados.
 
 ## Estrutura
@@ -64,13 +70,17 @@ projetos/index.html     Página principal
 projetos/css/style.css  Estilos (tema claro/escuro, celular e impressão)
 projetos/js/calc.js     Cálculos: valor agregado, saúde por domínio, tailoring, riscos, burndown
 projetos/js/pmbok.js    Referência do PMBOK 8 e modelos por tipo de projeto
-projetos/js/store.js    Armazenamento local e backup
+projetos/js/store.js    Armazenamento local, backup e migração de dados
 projetos/js/ui.js       Componentes de interface
-projetos/js/app.js      Rotas, Portfólio, Novo projeto, Guia e Configurações
+projetos/js/app.js      Rotas, Painel geral, Clientes, Novo projeto, Guia e Configurações
 projetos/js/projeto.js  Abas do projeto
 projetos/js/sample.js   Projetos de exemplo
 tests/projetos.test.js  Testes dos cálculos (npm test)
 ```
+
+## Migração de dados
+
+- Ao abrir um backup da versão anterior, o texto do campo "Cliente" de cada projeto vira um cliente cadastrado automaticamente.
 
 ## Próximos passos sugeridos
 

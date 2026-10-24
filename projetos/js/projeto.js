@@ -82,10 +82,14 @@
     const h = Calc.health(p, hoje());
     const wrap = el('div', { class: 'stack' });
     const tipo = Ref.TIPOS[p.tipo] || Ref.TIPOS.outro;
+    const cliente = Store.clienteDe(p);
     const idxFase = Ref.AREAS_FOCO.findIndex((a) => a.key === p.fase);
     wrap.append(el('header', { class: 'proj-head' },
       el('div', { class: 'proj-title' },
-        el('span', { class: 'eyebrow mono' }, `${p.codigo} · ${tipo.nome}`),
+        el('nav', { class: 'crumbs', 'aria-label': 'Caminho' },
+          cliente ? [el('button', { class: 'crumb', onclick: () => App.go('cliente', cliente.id) }, cliente.nome), el('span', { 'aria-hidden': 'true' }, ' › ')]
+            : el('span', { class: 'muted' }, 'Sem cliente · '),
+          el('span', { class: 'eyebrow mono' }, `${p.codigo} · ${tipo.nome}`)),
         el('h1', null, p.nome),
         el('div', { class: 'chips' },
           UI.health(h.geral),
@@ -94,7 +98,7 @@
           p.gerente ? UI.pill(`Gerente: ${p.gerente}`) : null)),
       el('div', { class: 'page-actions' },
         el('button', { class: 'btn', onclick: () => UI.copyText(statusReport(p, h), 'Relatório de status copiado. Cole no e-mail ou no Teams.') }, 'Copiar relatório de status'),
-        el('button', { class: 'btn btn-ghost-danger', onclick: () => UI.confirmAction('Excluir projeto', `"${p.nome}" e todos os seus registros serão excluídos. Esta ação não pode ser desfeita.`, 'Excluir projeto', () => { Store.remove(p.id); UI.toast('Projeto excluído.'); App.go('portfolio'); }) }, 'Excluir'))));
+        el('button', { class: 'btn btn-ghost-danger', onclick: () => UI.confirmAction('Excluir projeto', `"${p.nome}" e todos os seus registros serão excluídos. Esta ação não pode ser desfeita.`, 'Excluir projeto', () => { Store.remove(p.id); UI.toast('Projeto excluído.'); if (cliente) App.go('cliente', cliente.id); else App.go('painel'); }) }, 'Excluir'))));
 
     wrap.append(el('nav', { class: 'focus-steps', 'aria-label': 'Área de foco atual' },
       Ref.AREAS_FOCO.map((a, i) => el('button', {
@@ -192,6 +196,7 @@
     const nv = { ok: 'No rumo', atencao: 'Atenção', critico: 'Crítico' };
     const L = [];
     L.push(`RELATÓRIO DE STATUS — ${p.codigo} ${p.nome}`);
+    L.push(`Cliente: ${(Store.clienteDe(p) || {}).nome || '—'}`);
     L.push(`Data: ${UI.date(hoje())} | Gerente: ${p.gerente || '—'} | Patrocinador: ${p.patrocinador || '—'}`);
     L.push(`Abordagem: ${(Ref.ABORDAGENS[p.abordagem] || {}).nome || '—'} | Área de foco: ${(Ref.AREAS_FOCO.find((a) => a.key === p.fase) || {}).nome || '—'}`);
     L.push('');
@@ -223,7 +228,7 @@
       { key: 'abordagem', label: 'Abordagem', type: 'select', options: Object.entries(Ref.ABORDAGENS).map(([k, a]) => [k, a.nome]) },
       { key: 'status', label: 'Situação', type: 'select', options: Ref.STATUS_PROJETO },
       { key: 'area', label: 'Área / planta' },
-      { key: 'cliente', label: 'Cliente (interno ou externo)' },
+      { key: 'clienteId', label: 'Cliente', type: 'select', options: () => [['', '— sem cliente —'], ...Store.clientes().map((c) => [c.id, c.nome])] },
       { key: 'gerente', label: 'Gerente do projeto', required: true },
       { key: 'patrocinador', label: 'Patrocinador' },
       { key: 'inicio', label: 'Início', type: 'date' },

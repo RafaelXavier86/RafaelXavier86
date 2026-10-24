@@ -266,7 +266,38 @@
     return { dominios: out, geral, evm: e, atrasadas };
   }
 
+  // ---------- Consolidação (painel geral e por cliente) ----------
+
+  const isActive = (p) => !['concluido', 'cancelado'].includes(p.status);
+
+  // Resumo de um conjunto de projetos; o avanço médio é ponderado pelo orçamento (ou simples, se não houver)
+  function resumo(projetos, today) {
+    const ativos = projetos.filter(isActive);
+    const hs = ativos.map((p) => ({ p, h: health(p, today) }));
+    const orcamento = ativos.reduce((s, p) => s + num(p.orcamento), 0);
+    const pesoTotal = hs.reduce((s, { p }) => s + (num(p.orcamento) || 0), 0);
+    const avanco = hs.length
+      ? (pesoTotal > 0
+        ? hs.reduce((s, { p, h }) => s + num(p.orcamento) * h.evm.avancoReal, 0) / pesoTotal
+        : hs.reduce((s, { h }) => s + h.evm.avancoReal, 0) / hs.length)
+      : null;
+    return {
+      total: projetos.length,
+      ativos: ativos.length,
+      encerrados: projetos.length - ativos.length,
+      criticos: hs.filter(({ h }) => h.geral === 'critico').length,
+      atencao: hs.filter(({ h }) => h.geral === 'atencao').length,
+      ok: hs.filter(({ h }) => h.geral === 'ok').length,
+      orcamento,
+      custoReal: hs.reduce((s, { h }) => s + h.evm.AC, 0),
+      atrasadas: hs.reduce((s, { h }) => s + h.atrasadas, 0),
+      riscosAltos: ativos.reduce((s, p) => s + (p.riscos || []).filter((r) => riskOpen(r) && r.tipo !== 'oportunidade' && riskScore(r) >= 15).length, 0),
+      avanco,
+    };
+  }
+
   return {
+    isActive, resumo,
     parseDate, toISO, addDays, daysBetween, num, clamp, round,
     isDone, taskProgress, isOverdue, plannedFraction, duration, physicalProgress, evm,
     riskScore, riskLevel, riskOpen, quadrant, workload, burndown, velocity, kpiProgress,

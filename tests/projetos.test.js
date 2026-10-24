@@ -127,3 +127,24 @@ test('saúde: aponta risco alto sem plano e tarefas atrasadas', () => {
   assert.strictEqual(h.dominios.partes.nivel, 'ok');
   assert.strictEqual(h.geral, 'critico');
 });
+
+test('resumo: consolida apenas os projetos ativos', () => {
+  const hoje = '2026-03-10';
+  const base = { patrocinador: 'x', aprovadoEm: hoje, escopoIncluido: 'x', equipe: [{ nome: 'A', alocacao: 50 }], partes: [{ nome: 'C', poder: 3, interesse: 3 }] };
+  const ps = [
+    Object.assign({ status: 'andamento', orcamento: 3000, tarefas: [{ inicio: '2026-03-01', fim: '2026-03-10', status: 'concluida', custoPlanejado: 1000, custoReal: 1000, responsavel: 'A' }],
+      riscos: [{ probabilidade: 4, impacto: 4, status: 'aberto', tipo: 'ameaca', plano: 'x' }] }, base),
+    Object.assign({ status: 'andamento', orcamento: 1000, tarefas: [{ inicio: '2026-03-01', fim: '2026-03-10', progresso: 0, custoPlanejado: 1000, responsavel: 'A' }], riscos: [] }, base),
+    Object.assign({ status: 'concluido', orcamento: 9999, tarefas: [], riscos: [] }, base),
+  ];
+  const r = Calc.resumo(ps, hoje);
+  assert.strictEqual(r.total, 3);
+  assert.strictEqual(r.ativos, 2);
+  assert.strictEqual(r.encerrados, 1);
+  assert.strictEqual(r.orcamento, 4000);
+  assert.strictEqual(r.custoReal, 1000);
+  assert.strictEqual(r.atrasadas, 0);
+  assert.strictEqual(r.riscosAltos, 1);
+  close(r.avanco, 0.75); // (3000 × 100% + 1000 × 0%) / 4000
+  assert.strictEqual(Calc.resumo([], hoje).avanco, null);
+});
