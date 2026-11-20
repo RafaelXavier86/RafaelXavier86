@@ -1,0 +1,11 @@
+{
+  "name": "rxr3d-orcamentos",
+  "version": "1.0.0",
+  "description": "RXR 3D — precificação e orçamentos de peças em impressão 3D",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "python3 -m http.server 8081"
+  },
+  "license": "UNLICENSED"
+}

@@ -1,5 +1,7 @@
 # Qualidade Core Tools — IATF 16949
 
+> Este repositório também contém o **[RXR 3D — Precificação e Orçamentos](rxr3d-orcamentos/README.md)** (pasta `rxr3d-orcamentos/`).
+
 Aplicação web para **lançamento e relatório** dos registros de qualidade automotiva, cobrindo as ferramentas do **Core Tools (AIAG)** e os requisitos da **IATF 16949**.
 
 Funciona direto no navegador, sem instalação nem servidor de banco de dados. Os dados ficam salvos no navegador (localStorage), e o próprio sistema faz backup e restauração em arquivo JSON.
