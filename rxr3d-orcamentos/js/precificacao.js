@@ -165,8 +165,11 @@
     const form = UI.form(fs, toForm(input));
     const out = h('div');
     const cmp = h('div');
+    let imagemId = (input && input.imagemId) || '';
+    const imgField = Imagens.campo(imagemId, (id) => { imagemId = id; });
     const get = () => {
       const inp = fromForm(UI.readForm(form, fs));
+      inp.imagemId = imagemId;
       return { input: inp, res: calcular(inp) };
     };
     const update = () => {
@@ -178,7 +181,7 @@
     form.addEventListener('change', update);
     update();
     const el = h('div', { class: 'pricing' },
-      h('div', { class: 'pricing-form card' }, faltaCadastro(), form),
+      h('div', { class: 'pricing-form card' }, faltaCadastro(), form, imgField),
       h('div', { class: 'pricing-out' }, out));
     return { el, cmp, get, valid: () => UI.validate(form, fs), form };
   }
@@ -189,6 +192,7 @@
     return Object.assign({}, prev || {}, {
       id: (prev && prev.id) || Store.uid(),
       tipo: 'peca',
+      imagemId: input.imagemId || '',
       descricao: (prev && prev.descricao && prev.nomeOrig === input.nome) ? prev.descricao : input.nome,
       nomeOrig: input.nome,
       detalhe: [fil ? fil.material + (fil.cor ? ' ' + fil.cor : '') : '', input.acabamento ? 'com acabamento' : '', input.projeto ? 'projeto customizado' : ''].filter(Boolean).join(' · '),
@@ -247,7 +251,7 @@
         const r = calcular(unit);
         const fil = p.input.filamentoId ? Store.get('filamentos', p.input.filamentoId) : null;
         tbody.append(h('tr', null,
-          h('td', null, h('a', { href: '#/precificacao/' + p.id }, h('strong', null, p.nome))),
+          h('td', null, h('div', { class: 'with-thumb' }, Imagens.mini(p.input.imagemId), h('a', { href: '#/precificacao/' + p.id }, h('strong', null, p.nome)))),
           h('td', null, fil ? fil.material : h('span', { class: 'neg' }, 'filamento excluído')),
           h('td', { class: 'num' }, UI.num(p.input.pesoG, 0) + ' g'),
           h('td', { class: 'num' }, UI.horas(n(p.input.minutos) / 60)),

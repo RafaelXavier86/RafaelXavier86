@@ -20,6 +20,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   font-family: var(--font);
@@ -317,3 +318,39 @@ label.inline input { width: auto; }
 .pdf-sign { display: flex; justify-content: space-between; gap: 40px; margin-top: 46px; page-break-inside: avoid; }
 .pdf-sign div { flex: 1; text-align: center; font-size: 9.5pt; }
 .pdf-sign span { display: block; border-top: 1px solid var(--rxr-preto); margin-bottom: 4px; }
+
+/* ---------- imagens dos produtos */
+.img-field { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--rxr-borda); display: flex; flex-direction: column; gap: 6px; }
+.img-field > label { font-size: 12px; font-weight: 600; }
+.grid-form .img-field { margin-top: 2px; }
+.img-row { display: flex; gap: 14px; align-items: center; }
+.img-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.img-actions .help { flex-basis: 100%; }
+.img-thumb {
+  width: 120px; height: 120px; flex-shrink: 0; border: 1px solid var(--rxr-borda); border-radius: 8px; background: #fff;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer;
+}
+.img-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.img-thumb.vazia { border-style: dashed; color: var(--muted); font-size: 12px; background: var(--rxr-fundo-claro); }
+.img-thumb.drop { border-color: var(--rxr-azul); background: var(--azul-claro); }
+.with-thumb { display: flex; align-items: center; gap: 10px; }
+.mini-thumb {
+  width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--rxr-borda); border-radius: 6px; background: #fff;
+  display: inline-flex; align-items: center; justify-content: center; overflow: hidden; color: var(--muted); font-size: 18px;
+}
+.mini-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.mini-thumb.vazia { border-style: dashed; background: var(--rxr-fundo-claro); }
+.mini-thumb.clicavel { cursor: pointer; }
+.mini-thumb.clicavel:hover { border-color: var(--rxr-azul); color: var(--rxr-azul); }
+
+/* imagens no PDF */
+.pdf-itens td.img { padding: 2px; height: auto; }
+.pdf-itens td.img img { display: block; margin: 0 auto; max-width: 100%; height: 22mm; object-fit: contain; }
+.pdf-galeria { page-break-before: auto; margin-top: 14px; }
+.pdf-galeria .pdf-bar { page-break-after: avoid; }
+.pdf-gal-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.pdf-gal-grid figure { margin: 0; border: 1px solid #9AA9BA; padding: 6px; page-break-inside: avoid; break-inside: avoid; }
+.pdf-gal-grid .ph { height: 70mm; display: flex; align-items: center; justify-content: center; background: #fff; }
+.pdf-gal-grid img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.pdf-gal-grid figcaption { font-size: 9pt; margin-top: 4px; border-top: 1px solid var(--rxr-borda); padding-top: 4px; }
+.pdf-gal-grid figcaption b { color: var(--rxr-azul); }

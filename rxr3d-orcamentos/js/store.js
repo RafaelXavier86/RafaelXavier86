@@ -141,16 +141,21 @@
       persist();
       return db.settings.seqOrcamento;
     },
-    exportJSON() {
+    /** imagens: { id: dataURL } guardadas no IndexedDB, incluídas no mesmo arquivo. */
+    exportJSON(imagens) {
       db.settings.ultimoBackup = new Date().toISOString();
       persist();
-      return JSON.stringify(Object.assign({ app: 'rxr3d-orcamentos', exportadoEm: new Date().toISOString() }, db), null, 2);
+      return JSON.stringify(Object.assign({ app: 'rxr3d-orcamentos', exportadoEm: new Date().toISOString() }, db, { imagens: imagens || {} }));
     },
+    /** Restaura os dados e devolve o mapa de imagens do backup (ou null em backups antigos). */
     importJSON(text) {
       const data = JSON.parse(text);
       if (!data || !data.collections || !data.settings) throw new Error('Arquivo não é um backup deste sistema.');
+      const imagens = data.imagens || null;
+      delete data.imagens; delete data.app; delete data.exportadoEm;
       db = merge(defaults(), data);
       persist();
+      return imagens;
     },
     reset() {
       db = defaults();

@@ -116,12 +116,23 @@
       if (!f) return;
       const txt = await f.text();
       UI.confirm('Restaurar o backup "' + f.name + '"? Todos os dados atuais serão substituídos.', () => {
-        try { Store.importJSON(txt); UI.toast('Backup restaurado.'); App.go('#/dashboard'); } catch (err) { UI.toast('Falha ao restaurar: ' + err.message, 'bad'); }
+        (async () => {
+          try {
+            const imagens = Store.importJSON(txt);
+            if (imagens) await Imagens.substituirTodas(imagens);
+            UI.toast('Backup restaurado.'); App.go('#/dashboard');
+          } catch (err) { UI.toast('Falha ao restaurar: ' + err.message, 'bad'); }
+        })();
       }, 'Restaurar');
       fileIn.value = '';
     } });
     const contagem = ['clientes', 'filamentos', 'equipamentos', 'embalagens', 'pecas', 'orcamentos'].map((k) => Store.all(k).length);
     const kb = Store.usage() * 2 / 1024;
+    const imgInfo = h('p', { class: 'muted' });
+    Imagens.todas().then((m) => {
+      const v = Object.values(m);
+      imgInfo.textContent = 'Imagens dos produtos: ' + v.length + ' arquivo(s), ' + UI.num(v.reduce((s, x) => s + x.length, 0) * 0.75 / 1024 / 1024, 1) + ' MB.';
+    }).catch(() => { imgInfo.textContent = 'Este navegador bloqueou o banco de imagens (IndexedDB).'; });
     return h('div', null,
       UI.pageHead('Configurações', 'Dados da empresa para o PDF e cópias de segurança.', h('button', { class: 'btn primary', onclick: salvarEmp }, 'Salvar empresa')),
       h('div', { class: 'card' }, h('h3', null, 'Empresa (cabeçalho do orçamento)'), fe),
@@ -131,14 +142,23 @@
           'Faça um backup periodicamente e guarde o arquivo em outro lugar (pendrive, Google Drive, OneDrive). Limpar os dados de navegação do navegador apaga o histórico.'),
         h('p', { class: 'muted' }, 'Último backup: ' + (s.ultimoBackup ? new Date(s.ultimoBackup).toLocaleString('pt-BR') : 'nunca')),
         h('div', { class: 'inline-group' },
-          h('button', { class: 'btn primary', onclick: () => { UI.download('backup_rxr3d_' + UI.today() + '.json', Store.exportJSON()); UI.toast('Backup gerado.'); } }, 'Baixar backup (.json)'),
-          h('button', { class: 'btn', onclick: () => fileIn.click() }, 'Restaurar backup…'), fileIn)),
+          h('button', { class: 'btn primary', onclick: async () => {
+            const imagens = await Imagens.todas().catch(() => ({}));
+            UI.download('backup_rxr3d_' + UI.today() + '.json', Store.exportJSON(imagens));
+            UI.toast('Backup gerado (' + Object.keys(imagens).length + ' imagens incluídas).');
+          } }, 'Baixar backup (.json)'),
+          h('button', { class: 'btn', onclick: () => fileIn.click() }, 'Restaurar backup…'), fileIn,
+          h('button', { class: 'btn', onclick: async () => {
+            const r = await Imagens.limpar();
+            UI.toast(r.n ? r.n + ' imagem(ns) sem uso removida(s) (' + UI.num(r.bytes / 1024 / 1024 * 0.75, 1) + ' MB).' : 'Nenhuma imagem sem uso.');
+          } }, 'Limpar imagens sem uso')),
+        imgInfo),
       h('div', { class: 'card' },
         h('h3', null, 'Dados de exemplo'),
         h('p', null, 'Carrega filamentos, uma impressora, embalagens, clientes, peças e vendas fictícias dos últimos meses para conhecer o sistema. Os dados atuais são substituídos.'),
         h('div', { class: 'inline-group' },
           h('button', { class: 'btn', onclick: () => UI.confirm('Substituir todos os dados pelos dados de exemplo?', () => { Sample.load(); UI.toast('Dados de exemplo carregados.'); App.go('#/dashboard'); }, 'Carregar') }, 'Carregar dados de exemplo'),
-          h('button', { class: 'btn ghost-danger', onclick: () => UI.confirm('Apagar TODOS os dados deste sistema? Faça um backup antes.', () => { Store.reset(); UI.toast('Dados apagados.'); App.go('#/dashboard'); }, 'Apagar tudo') }, 'Apagar todos os dados'))));
+          h('button', { class: 'btn ghost-danger', onclick: () => UI.confirm('Apagar TODOS os dados deste sistema? Faça um backup antes.', async () => { Store.reset(); await Imagens.substituirTodas({}); UI.toast('Dados apagados.'); App.go('#/dashboard'); }, 'Apagar tudo') }, 'Apagar todos os dados'))));
   }
 
   window.Config = { parametros, marketplaces, config };

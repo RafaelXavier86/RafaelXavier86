@@ -161,6 +161,10 @@
       { key: 'horasUnit', label: 'Horas de impressão/un.', type: 'num', span: 1 },
     ];
     const form = UI.form(fs, item ? { descricao: item.descricao, quantidade: item.quantidade, valorUnit: item.valorUnit, custoUnit: item.custoTotal / (item.quantidade || 1), horasUnit: item.horas / (item.quantidade || 1) } : {});
+    let imagemId = (item && item.imagemId) || '';
+    const imgField = Imagens.campo(imagemId, (id) => { imagemId = id; });
+    imgField.classList.add('span-4');
+    form.append(imgField);
     UI.modal(item ? 'Editar item avulso' : 'Item avulso', form, {
       actions: [
         { label: 'Cancelar', onClick: (c) => c() },
@@ -170,7 +174,7 @@
           const q = Math.max(1, n(v.quantidade) || 1);
           c();
           onOk(Object.assign({}, item || {}, {
-            id: (item && item.id) || Store.uid(), tipo: 'avulso', descricao: v.descricao, detalhe: '',
+            id: (item && item.id) || Store.uid(), tipo: 'avulso', descricao: v.descricao, detalhe: '', imagemId,
             quantidade: q, valorUnit: n(v.valorUnit), valorTotal: n(v.valorUnit) * q,
             custoTotal: n(v.custoUnit) * q, lucro: (n(v.valorUnit) - n(v.custoUnit)) * q,
             horas: n(v.horasUnit) * q, pecas: n(v.horasUnit) ? q : 0,
@@ -258,7 +262,10 @@
         field('Emissão', dateInput('data')),
         field('Válido até', validadeEl),
         field('Status', statusSel),
-        vendaWrap),
+        vendaWrap,
+        field('Imagens no PDF', h('select', { onchange: (e) => { o.imagensPdf = e.target.value; save(); } },
+          [['miniatura', 'Miniatura na tabela'], ['galeria', 'Galeria ampliada'], ['ambas', 'Miniatura + galeria'], ['nenhuma', 'Não mostrar']]
+            .map(([v, l]) => h('option', { value: v, selected: v === (o.imagensPdf || 'miniatura') }, l))))),
       clienteInfo);
 
     // ---- itens
@@ -278,7 +285,8 @@
         const mover = (d) => { const j = idx + d; if (j < 0 || j >= o.itens.length) return; [o.itens[idx], o.itens[j]] = [o.itens[j], o.itens[idx]]; save(true); renderItens(); };
         tbody.append(h('tr', null,
           h('td', { class: 'center muted' }, String(idx + 1)),
-          h('td', null, desc, it.detalhe ? h('small', { class: 'muted block' }, it.detalhe) : null),
+          h('td', null, h('div', { class: 'with-thumb' }, Imagens.mini(it.imagemId, () => trocarImagem(it)),
+            h('div', null, desc, it.detalhe ? h('small', { class: 'muted block' }, it.detalhe) : null))),
           h('td', { class: 'num' }, UI.int(it.quantidade)),
           h('td', { class: 'num' }, UI.brl(it.valorUnit)),
           h('td', { class: 'num strong' }, UI.brl(it.valorTotal)),
@@ -292,6 +300,19 @@
             h('button', { class: 'btn small ghost-danger', onclick: () => { o.itens.splice(idx, 1); save(true); renderItens(); } }, 'Remover'))));
       });
       renderTotais();
+    };
+    const trocarImagem = (it) => {
+      let novo = it.imagemId || '';
+      UI.modal('Imagem — ' + it.descricao, h('div', { class: 'card' }, Imagens.campo(novo, (id) => { novo = id; })), {
+        actions: [
+          { label: 'Cancelar', onClick: (c) => c() },
+          { label: 'Aplicar', kind: 'primary', onClick: (c) => {
+            it.imagemId = novo;
+            if (it.input) it.input.imagemId = novo;
+            save(true); renderItens(); c();
+          } },
+        ],
+      });
     };
     const addItem = (it) => { o.itens.push(it); save(true); renderItens(); };
 
@@ -372,17 +393,30 @@
   }
 
   // ---------------------------------------------------------------- PDF (impressão)
-  function imprimir(o) {
+  async function imprimir(o) {
     const s = Store.settings();
     const e = s.empresa;
     const c = o.cliente || {};
     const t = Calc.totaisOrcamento(o);
     const esc = UI.esc;
-    const MIN_LINHAS = 12;
+    const modo = o.imagensPdf || 'miniatura';
+    const imgs = modo === 'nenhuma' ? {} : await Imagens.getMany(o.itens.map((i) => i.imagemId));
+    const temImg = o.itens.some((i) => imgs[i.imagemId]);
+    const mini = temImg && (modo === 'miniatura' || modo === 'ambas');
+    const galeria = temImg && (modo === 'galeria' || modo === 'ambas');
+    const MIN_LINHAS = mini ? 6 : 12;
+    const colImg = (it) => mini ? `<td class="c img">${imgs[it.imagemId] ? `<img src="${imgs[it.imagemId]}" alt="">` : ''}</td>` : '';
     const linhas = o.itens.map((it, i) => `
-      <tr><td class="c">${i + 1}</td><td>${esc(it.descricao)}${it.detalhe ? `<small>${esc(it.detalhe)}</small>` : ''}</td>
+      <tr><td class="c">${i + 1}</td>${colImg(it)}<td>${esc(it.descricao)}${it.detalhe ? `<small>${esc(it.detalhe)}</small>` : ''}</td>
       <td class="c">${UI.int(it.quantidade)}</td><td class="r">${UI.brl(it.valorUnit)}</td><td class="r v">${UI.brl(it.valorTotal)}</td></tr>`).join('') +
-      Array.from({ length: Math.max(0, MIN_LINHAS - o.itens.length) }, (_, i) => `<tr class="vazia"><td class="c">${o.itens.length + i + 1}</td><td></td><td></td><td></td><td></td></tr>`).join('');
+      Array.from({ length: Math.max(0, MIN_LINHAS - o.itens.length) }, (_, i) => `<tr class="vazia"><td class="c">${o.itens.length + i + 1}</td>${mini ? '<td></td>' : ''}<td></td><td></td><td></td><td></td></tr>`).join('');
+    const galeriaHtml = galeria ? `
+      <section class="pdf-galeria">
+        <div class="pdf-bar">IMAGENS DOS PRODUTOS</div>
+        <div class="pdf-gal-grid">${o.itens.map((it, i) => imgs[it.imagemId] ? `
+          <figure><div class="ph"><img src="${imgs[it.imagemId]}" alt=""></div>
+          <figcaption><b>Item ${i + 1}</b> — ${esc(it.descricao)}</figcaption></figure>` : '').join('')}</div>
+      </section>` : '';
     const end = [c.endereco, c.numero].filter(Boolean).join(', ') + (c.complemento ? ' — ' + c.complemento : '');
     const html = `
     <div class="pdf">
@@ -413,7 +447,7 @@
       </table>
       <div class="pdf-bar">ORÇAMENTO</div>
       <table class="pdf-itens">
-        <thead><tr><th class="c" style="width:9%">ITEM</th><th>DESCRIÇÃO</th><th class="c" style="width:10%">QUANT.</th><th class="r" style="width:16%">VALOR UNIT.</th><th class="r" style="width:17%">VALOR</th></tr></thead>
+        <thead><tr><th class="c" style="width:7%">ITEM</th>${mini ? '<th class="c" style="width:16%">IMAGEM</th>' : ''}<th>DESCRIÇÃO</th><th class="c" style="width:10%">QUANT.</th><th class="r" style="width:16%">VALOR UNIT.</th><th class="r" style="width:17%">VALOR</th></tr></thead>
         <tbody>${linhas}</tbody>
       </table>
       <table class="pdf-tot">
@@ -425,20 +459,18 @@
         <div><span></span>${esc(e.nome)}</div>
         <div><span></span>${esc(c.nome || 'Cliente')}</div>
       </div>
+      ${galeriaHtml}
     </div>`;
     const area = document.getElementById('print-area');
     area.innerHTML = html;
     const tituloAnterior = document.title;
     const nomeArq = 'Orcamento_' + numero(o) + (c.nome ? '_' + c.nome.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '_') : '');
     document.title = nomeArq;
-    const img = area.querySelector('img');
-    const go = () => {
-      setTimeout(() => {
-        window.print();
-        document.title = tituloAnterior;
-      }, 50);
-    };
-    if (img.complete) go(); else { img.onload = go; img.onerror = go; }
+    await Promise.all([...area.querySelectorAll('img')].map((img) => (img.decode ? img.decode().catch(() => {}) : null)));
+    setTimeout(() => {
+      window.print();
+      document.title = tituloAnterior;
+    }, 50);
   }
 
   window.Orcamentos = { STATUS, VENDIDO, statusLabel, badge, numero, lista, editor, novo, vendas, escolherEAdicionar, imprimir };

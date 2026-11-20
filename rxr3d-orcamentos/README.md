@@ -60,6 +60,13 @@ Custos e lucro **não** saem no PDF; eles aparecem só no quadro "Uso interno".
 
 Dica: na janela de impressão, desmarque "Cabeçalhos e rodapés" para o PDF sair sem a data e o caminho do arquivo.
 
+## Imagens dos produtos
+
+- **Na peça do catálogo:** em *Calcular preço*, use **Anexar imagem**. Também dá para arrastar a foto para o quadro. A imagem acompanha a peça em todos os orçamentos criados a partir dela.
+- **No orçamento:** clique na miniatura ao lado da descrição de qualquer item para anexar ou trocar a imagem só naquele orçamento. Itens avulsos também aceitam imagem.
+- **No PDF:** no campo **Imagens no PDF** do orçamento, escolha *Miniatura na tabela*, *Galeria ampliada* (imagens grandes ao final, com o nº do item), *Miniatura + galeria* ou *Não mostrar*.
+- As fotos são reduzidas automaticamente (até 1000 px, JPEG) e ficam num banco local do navegador (IndexedDB). Elas **entram no arquivo de backup**. Em *Configurações → Limpar imagens sem uso* você apaga as fotos que não estão em nenhuma peça ou orçamento.
+
 ## Dashboard: o que conta como venda
 
 Contam como venda os orçamentos com status **Aprovado** ou **Concluído**, pela **data da venda**. Essa data é preenchida automaticamente ao aprovar e pode ser alterada. Para registrar vendas do Mercado Livre ou da Shopee, crie um orçamento com o canal correspondente na composição, use um cliente como "Mercado Livre (vendas)" e marque como *Concluído*.
