@@ -10,6 +10,24 @@
     return [['', emptyLabel]].concat(rows.map((r) => [r.id, Cadastros.label(name, r)]));
   }
 
+  function categorias() {
+    const base = ['Decoração', 'Utilidades', 'Peças técnicas', 'Brinquedos', 'Chaveiros', 'Organização', 'Automotivo', 'Games', 'Brindes'];
+    const usadas = Store.all('pecas').map((p) => p.categoria || (p.input && p.input.categoria)).filter(Boolean);
+    return [...new Set(usadas.concat(base))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }
+
+  const skuDe = (p) => p.sku || (p.input && p.input.sku) || '';
+  const catDe = (p) => p.categoria || (p.input && p.input.categoria) || '';
+
+  /** Gera SKU para a peça se ainda não tiver; devolve o SKU. */
+  function materialDe(input) {
+    const fil = input && input.filamentoId ? Store.get('filamentos', input.filamentoId) : null;
+    return fil ? fil.material : '';
+  }
+  function skusUsados(excetoId) {
+    return new Set(Store.all('pecas').filter((p) => p.id !== excetoId).map(skuDe).filter(Boolean));
+  }
+
   function canaisAtivos() {
     return Store.settings().canais.filter((c) => c.ativo);
   }
@@ -19,7 +37,9 @@
     const fil = opts('filamentos', '— selecione —');
     const eqs = opts('equipamentos', '— selecione —');
     return [
-      { key: 'nome', label: 'Nome da peça', required: true, span: 4 },
+      { key: 'nome', label: 'Nome da peça', required: true, span: 2 },
+      { key: 'sku', label: 'SKU (código)', span: 1, placeholder: 'automático', help: 'Em branco = gerado ao salvar no catálogo.' },
+      { key: 'categoria', label: 'Categoria', span: 1, suggest: categorias(), placeholder: 'ex.: Decoração' },
       { key: 'filamentoId', label: 'Material (filamento)', type: 'select', options: fil, required: true, span: 2 },
       { key: 'equipamentoId', label: 'Equipamento', type: 'select', options: eqs, required: true, span: 2, default: eqs[1] ? eqs[1][0] : '' },
       { key: 'pesoG', label: 'Peso da peça', type: 'num', suffix: 'g', required: true, span: 1, help: 'Peso informado pelo fatiador, com suportes.' },
@@ -52,7 +72,7 @@
   }
   function fromForm(v) {
     return {
-      nome: v.nome, filamentoId: v.filamentoId, equipamentoId: v.equipamentoId, embalagemId: v.embalagemId,
+      nome: v.nome, sku: Calc.normSku(v.sku), categoria: (v.categoria || '').trim(), filamentoId: v.filamentoId, equipamentoId: v.equipamentoId, embalagemId: v.embalagemId,
       pesoG: n(v.pesoG), minutos: n(v.horas) * 60 + n(v.min), quantidade: Math.max(1, Math.round(n(v.quantidade) || 1)),
       acabamento: v.acabamento === 'sim', projeto: v.projeto === 'sim',
       pecasPorEmbalagem: Math.max(1, Math.round(n(v.pecasPorEmbalagem) || 1)),
@@ -195,7 +215,8 @@
       imagemId: input.imagemId || '',
       descricao: (prev && prev.descricao && prev.nomeOrig === input.nome) ? prev.descricao : input.nome,
       nomeOrig: input.nome,
-      detalhe: [fil ? fil.material + (fil.cor ? ' ' + fil.cor : '') : '', input.acabamento ? 'com acabamento' : '', input.projeto ? 'projeto customizado' : ''].filter(Boolean).join(' · '),
+      sku: input.sku || '',
+      detalhe: [input.sku ? 'SKU ' + input.sku : '', fil ? fil.material + (fil.cor ? ' ' + fil.cor : '') : '', input.acabamento ? 'com acabamento' : '', input.projeto ? 'projeto customizado' : ''].filter(Boolean).join(' · '),
       quantidade: res.quantidade,
       valorUnit: res.precoTotal / res.quantidade,
       valorTotal: res.precoTotal,
@@ -216,9 +237,21 @@
     const salvar = () => {
       if (!ed.valid()) return;
       const { input } = ed.get();
-      const existente = peca || Store.all('pecas').find((p) => p.nome.toLowerCase() === input.nome.toLowerCase());
-      const saved = Store.save('pecas', Object.assign({}, existente || {}, { nome: input.nome, input }));
-      UI.toast('Peça salva no catálogo.');
+      const todas = Store.all('pecas');
+      // peça aberta do catálogo, ou mesma peça salva de novo (mesmo nome e SKU compatível)
+      const existente = peca
+        || todas.find((p) => p.nome.toLowerCase() === input.nome.toLowerCase() && (!input.sku || !skuDe(p) || skuDe(p) === input.sku));
+      const usados = skusUsados(existente && existente.id);
+      if (input.sku && usados.has(input.sku)) {
+        UI.toast('O SKU ' + input.sku + ' já está em uso por outra peça.', 'bad');
+        ed.form.elements.sku.classList.add('invalid');
+        return;
+      }
+      if (!input.sku) input.sku = Store.nextSku(materialDe(input), usados);
+      ed.form.elements.sku.value = input.sku;
+      ed.form.elements.sku.classList.remove('invalid');
+      const saved = Store.save('pecas', Object.assign({}, existente || {}, { nome: input.nome, sku: input.sku, categoria: input.categoria, input }));
+      UI.toast('Peça salva no catálogo · SKU ' + input.sku + '.');
       if (!pecaId) location.hash = '#/precificacao/' + saved.id;
     };
     const addOrc = () => {
@@ -228,7 +261,7 @@
       Orcamentos.escolherEAdicionar(toItem(input, res));
     };
     return h('div', null,
-      UI.pageHead(peca ? peca.nome : 'Precificação', peca ? 'Peça do catálogo — altere e salve para atualizar.' : 'Composição de preço de uma peça, com custos, margem e taxas de marketplace.',
+      UI.pageHead(peca ? peca.nome : 'Precificação', peca ? 'Peça do catálogo' + (skuDe(peca) ? ' · SKU ' + skuDe(peca) : '') + ' — altere e salve para atualizar.' : 'Composição de preço de uma peça, com custos, margem e taxas de marketplace.',
         h('a', { class: 'btn', href: '#/precificacao' }, 'Nova'),
         h('button', { class: 'btn', onclick: salvar }, 'Salvar no catálogo'),
         h('button', { class: 'btn primary', onclick: addOrc }, 'Adicionar a orçamento')),
@@ -236,23 +269,57 @@
   }
 
   // ---------------------------------------------------------------- catálogo de peças
+  function linhaCatalogo(p, canalId) {
+    const r = calcular(Object.assign({}, p.input, { quantidade: 1, frete: 0, precoManual: canalId ? '' : p.input.precoManual }), canalId);
+    const fil = p.input.filamentoId ? Store.get('filamentos', p.input.filamentoId) : null;
+    return { p, r, fil, sku: skuDe(p), cat: catDe(p) };
+  }
+
   function catalogo() {
     const tbody = h('tbody');
-    let q = '';
+    const f = { q: '', cat: '', ordem: 'sku' };
+    const avisoSku = h('div');
+    const filtrar = () => Store.all('pecas').map((p) => linhaCatalogo(p)).filter((l) => {
+      if (f.cat && (l.cat || '(sem categoria)') !== f.cat) return false;
+      if (!f.q) return true;
+      return [l.p.nome, l.sku, l.cat, l.fil && l.fil.material].join(' ').toLowerCase().includes(f.q);
+    }).sort((a, b) => {
+      if (f.ordem === 'nome') return a.p.nome.localeCompare(b.p.nome, 'pt-BR');
+      if (f.ordem === 'categoria') return (a.cat || '~').localeCompare(b.cat || '~', 'pt-BR') || a.p.nome.localeCompare(b.p.nome, 'pt-BR');
+      if (f.ordem === 'preco') return b.r.precoUnitario - a.r.precoUnitario;
+      return (a.sku || '~').localeCompare(b.sku || '~', 'pt-BR', { numeric: true });
+    });
+
+    const gerarFaltantes = () => {
+      const sem = Store.all('pecas').filter((p) => !skuDe(p)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      const usados = skusUsados();
+      for (const p of sem) {
+        const sku = Store.nextSku(materialDe(p.input), usados);
+        usados.add(sku);
+        p.sku = sku;
+        p.input.sku = sku;
+        Store.save('pecas', p);
+      }
+      UI.toast(sem.length + ' SKU(s) gerado(s).');
+      render();
+    };
+
     const render = () => {
-      const rows = Store.all('pecas').filter((p) => !q || p.nome.toLowerCase().includes(q)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+      const rows = filtrar();
+      const semSku = Store.all('pecas').filter((p) => !skuDe(p)).length;
+      avisoSku.replaceChildren(semSku ? h('div', { class: 'alert warn' }, semSku + ' peça(s) ainda sem SKU. ',
+        h('button', { class: 'btn small', onclick: gerarFaltantes }, 'Gerar SKUs automaticamente')) : '');
       tbody.replaceChildren();
       if (!rows.length) {
-        tbody.append(h('tr', null, h('td', { colspan: 8, class: 'muted center' }, q ? 'Nada encontrado.' : 'Nenhuma peça salva. Use a Precificação e clique em "Salvar no catálogo".')));
+        tbody.append(h('tr', null, h('td', { colspan: 10, class: 'muted center' }, (f.q || f.cat) ? 'Nada encontrado.' : 'Nenhuma peça salva. Use a Precificação e clique em "Salvar no catálogo".')));
         return;
       }
-      for (const p of rows) {
-        const unit = Object.assign({}, p.input, { quantidade: 1, frete: 0 });
-        const r = calcular(unit);
-        const fil = p.input.filamentoId ? Store.get('filamentos', p.input.filamentoId) : null;
+      for (const { p, r, fil, sku, cat } of rows) {
         tbody.append(h('tr', null,
+          h('td', null, sku ? h('code', { class: 'sku' }, sku) : h('span', { class: 'muted' }, '—')),
           h('td', null, h('div', { class: 'with-thumb' }, Imagens.mini(p.input.imagemId), h('a', { href: '#/precificacao/' + p.id }, h('strong', null, p.nome)))),
-          h('td', null, fil ? fil.material : h('span', { class: 'neg' }, 'filamento excluído')),
+          h('td', null, cat || h('span', { class: 'muted' }, '—')),
+          h('td', null, fil ? fil.material + (fil.cor ? ' ' + fil.cor : '') : h('span', { class: 'neg' }, 'filamento excluído')),
           h('td', { class: 'num' }, UI.num(p.input.pesoG, 0) + ' g'),
           h('td', { class: 'num' }, UI.horas(n(p.input.minutos) / 60)),
           h('td', { class: 'num' }, UI.brl(r.custoUnitario)),
@@ -264,15 +331,92 @@
             h('button', { class: 'btn small ghost-danger', onclick: () => UI.confirm('Excluir "' + p.nome + '" do catálogo?', () => { Store.remove('pecas', p.id); render(); }) }, 'Excluir'))));
       }
     };
+
+    const cats = [...new Set(Store.all('pecas').map((p) => catDe(p) || '(sem categoria)'))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const exportar = () => {
+      const linhas = [['SKU', 'Peça', 'Categoria', 'Material', 'Cor', 'Peso (g)', 'Tempo (h)', 'Custo unitário', 'Preço unitário', 'Margem %']];
+      for (const { p, r, fil, sku, cat } of filtrar()) {
+        linhas.push([sku, p.nome, cat, fil ? fil.material : '', fil ? fil.cor || '' : '', n(p.input.pesoG), Calc.r2(n(p.input.minutos) / 60), Calc.r2(r.custoUnitario), Calc.r2(r.precoUnitario), Calc.r2(r.margemPct)]);
+      }
+      UI.download('catalogo_rxr3d_' + UI.today() + '.csv', UI.csv(linhas), 'text/csv');
+    };
+
     render();
     return h('div', null,
-      UI.pageHead('Catálogo de peças', 'Peças já precificadas, recalculadas com os custos atuais (1 unidade, sem frete).', h('a', { class: 'btn primary', href: '#/precificacao' }, '+ Nova peça')),
+      UI.pageHead('Catálogo de peças', 'Peças já precificadas, recalculadas com os custos atuais (1 unidade, sem frete).',
+        h('button', { class: 'btn', onclick: exportar }, 'Exportar CSV'),
+        h('button', { class: 'btn', onclick: () => opcoesCatalogoPdf(filtrar().map((l) => l.p), f.cat) }, 'Catálogo em PDF'),
+        h('a', { class: 'btn primary', href: '#/precificacao' }, '+ Nova peça')),
+      avisoSku,
       h('div', { class: 'card' },
-        h('div', { class: 'toolbar' }, h('input', { type: 'search', class: 'search', placeholder: 'Buscar peça…', oninput: (e) => { q = e.target.value.toLowerCase(); render(); } })),
+        h('div', { class: 'toolbar' },
+          h('input', { type: 'search', class: 'search', placeholder: 'Buscar por SKU, nome, categoria ou material…', oninput: (e) => { f.q = e.target.value.toLowerCase(); render(); } }),
+          h('select', { 'aria-label': 'Categoria', onchange: (e) => { f.cat = e.target.value; render(); } }, h('option', { value: '' }, 'Todas as categorias'), cats.map((c) => h('option', { value: c }, c))),
+          h('label', { class: 'inline' }, 'Ordenar por ',
+            h('select', { onchange: (e) => { f.ordem = e.target.value; render(); } },
+              [['sku', 'SKU'], ['nome', 'Nome'], ['categoria', 'Categoria'], ['preco', 'Maior preço']].map(([v, l]) => h('option', { value: v }, l))))),
         h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
-          h('thead', null, h('tr', null, ['Peça', 'Material', 'Peso', 'Tempo', 'Custo/un.', 'Preço/un.', 'Margem', ''].map((t, i) => h('th', { class: i >= 2 && i <= 6 ? 'num' : null }, t)))),
+          h('thead', null, h('tr', null, ['SKU', 'Peça', 'Categoria', 'Material', 'Peso', 'Tempo', 'Custo/un.', 'Preço/un.', 'Margem', ''].map((t, i) => h('th', { class: i >= 4 && i <= 8 ? 'num' : null }, t)))),
           tbody))));
   }
 
-  window.Precificacao = { page, catalogo, editor, calcular, toItem, toForm, fromForm };
+  // ---------------------------------------------------------------- catálogo em PDF
+  function opcoesCatalogoPdf(pecas, categoria) {
+    if (!pecas.length) { UI.toast('Nenhuma peça para o catálogo.', 'warn'); return; }
+    const canais = canaisAtivos();
+    const fs = [
+      { key: 'titulo', label: 'Título', span: 4, default: '' },
+      { key: 'precos', label: 'Preços', type: 'select', options: [['sim', 'Mostrar preço unitário'], ['nao', 'Sem preços (só vitrine)']], span: 2 },
+      { key: 'canalId', label: 'Preço do canal', type: 'select', options: canais.map((c) => [c.id, c.nome]), span: 2 },
+      { key: 'detalhes', label: 'Mostrar material e cor', type: 'check', span: 2 },
+    ];
+    const form = UI.form(fs, { titulo: categoria && categoria !== '(sem categoria)' ? 'Catálogo — ' + categoria : 'Catálogo de produtos', precos: 'sim', canalId: 'direto', detalhes: true });
+    form.append(h('p', { class: 'help span-4' }, pecas.length + ' peça(s), na ordem e com os filtros da tela. Agrupadas por categoria.'));
+    UI.modal('Catálogo em PDF', form, {
+      actions: [
+        { label: 'Cancelar', onClick: (c) => c() },
+        { label: 'Gerar PDF', kind: 'primary', onClick: (c) => { const v = UI.readForm(form, fs); c(); imprimirCatalogo(pecas, v); } },
+      ],
+    });
+  }
+
+  async function imprimirCatalogo(pecas, op) {
+    const s = Store.settings();
+    const esc = UI.esc;
+    const imgs = await Imagens.getMany(pecas.map((p) => p.input.imagemId));
+    const grupos = new Map();
+    for (const p of pecas) {
+      const cat = catDe(p) || 'Outros';
+      if (!grupos.has(cat)) grupos.set(cat, []);
+      grupos.get(cat).push(p);
+    }
+    const card = (p) => {
+      const l = linhaCatalogo(p, op.canalId);
+      const img = imgs[p.input.imagemId];
+      return `<figure class="cat-card">
+        <div class="ph">${img ? `<img src="${img}" alt="">` : '<img class="sem" src="assets/logo.png" alt="">'}</div>
+        <figcaption>
+          ${l.sku ? `<span class="cat-sku">${esc(l.sku)}</span>` : ''}
+          <strong>${esc(p.nome)}</strong>
+          ${op.detalhes && l.fil ? `<small>${esc(l.fil.material + (l.fil.cor ? ' · ' + l.fil.cor : ''))}</small>` : ''}
+          ${op.precos === 'sim' ? `<span class="cat-preco">${UI.brl(l.r.precoUnitario)}</span>` : ''}
+        </figcaption></figure>`;
+    };
+    const canal = s.canais.find((c) => c.id === op.canalId);
+    const html = `
+    <div class="pdf">
+      ${Orcamentos.cabecalhoPdf(s.empresa)}
+      <div class="cat-titulo"><h1>${esc(op.titulo || 'Catálogo de produtos')}</h1>
+        <span>${pecas.length} produto(s) · ${UI.date(UI.today())}${op.precos === 'sim' && canal && canal.id !== 'direto' ? ' · preços ' + esc(canal.nome) : ''}</span></div>
+      ${[...grupos.entries()].sort((a, b) => (a[0] === 'Outros') - (b[0] === 'Outros') || a[0].localeCompare(b[0], 'pt-BR')).map(([cat, ps]) => `
+        <section class="cat-grupo">
+          <div class="pdf-bar">${esc(cat.toUpperCase())}</div>
+          <div class="cat-grid">${ps.map(card).join('')}</div>
+        </section>`).join('')}
+      ${op.precos === 'sim' ? '<p class="cat-nota">Preços unitários sujeitos a alteração sem aviso prévio. Consulte condições para quantidade e personalização.</p>' : ''}
+    </div>`;
+    Orcamentos.imprimirHtml(html, Orcamentos.nomeArquivo(op.titulo || 'Catalogo') + '_' + UI.today());
+  }
+
+  window.Precificacao = { page, catalogo, editor, calcular, toItem, toForm, fromForm, imprimirCatalogo };
 })();

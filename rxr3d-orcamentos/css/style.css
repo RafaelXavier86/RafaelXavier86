@@ -354,3 +354,25 @@ label.inline input { width: auto; }
 .pdf-gal-grid img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .pdf-gal-grid figcaption { font-size: 9pt; margin-top: 4px; border-top: 1px solid var(--rxr-borda); padding-top: 4px; }
 .pdf-gal-grid figcaption b { color: var(--rxr-azul); }
+
+/* ---------- SKU e catálogo */
+code.sku, .sku {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12.5px; font-weight: 600;
+  color: var(--azul-escuro); background: var(--azul-claro); padding: 2px 7px; border-radius: 5px; white-space: nowrap;
+}
+.alert .btn { margin-left: 8px; }
+.cat-titulo { display: flex; align-items: baseline; justify-content: space-between; margin: 12px 0 2px; border-bottom: 2px solid var(--rxr-laranja); padding-bottom: 4px; }
+.cat-titulo h1 { font-size: 18pt; }
+.cat-titulo span { font-size: 9pt; color: var(--muted); }
+.cat-grupo .pdf-bar { page-break-after: avoid; break-after: avoid; }
+.cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.cat-card { margin: 0; border: 1px solid #9AA9BA; border-radius: 6px; overflow: hidden; page-break-inside: avoid; break-inside: avoid; display: flex; flex-direction: column; }
+.cat-card .ph { height: 46mm; display: flex; align-items: center; justify-content: center; background: #fff; padding: 4px; }
+.cat-card .ph img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.cat-card .ph img.sem { height: 26mm; opacity: .18; filter: grayscale(1); }
+.cat-card figcaption { border-top: 1px solid var(--rxr-borda); padding: 5px 7px 6px; display: flex; flex-direction: column; gap: 1px; flex: 1; }
+.cat-card strong { font-size: 10pt; color: var(--rxr-preto); line-height: 1.2; }
+.cat-card small { font-size: 8pt; color: var(--muted); }
+.cat-sku { font-family: ui-monospace, Consolas, monospace; font-size: 8pt; font-weight: 700; color: var(--rxr-azul); }
+.cat-preco { margin-top: auto; padding-top: 3px; font-size: 12.5pt; font-weight: 800; color: var(--rxr-laranja); }
+.cat-nota { font-size: 8pt; color: var(--muted); margin-top: 10px; }

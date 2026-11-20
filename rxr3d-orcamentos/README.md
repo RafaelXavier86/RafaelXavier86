@@ -60,6 +60,15 @@ Custos e lucro **não** saem no PDF; eles aparecem só no quadro "Uso interno".
 
 Dica: na janela de impressão, desmarque "Cabeçalhos e rodapés" para o PDF sair sem a data e o caminho do arquivo.
 
+## SKU (código das peças) e catálogo
+
+- Cada peça do catálogo tem um **SKU** e uma **categoria**. Se o campo SKU ficar em branco, o código é gerado ao salvar no formato **PREFIXO-MATERIAL-0001** (ex.: `RXR-PLA-0001`, `RXR-PETG-0004`). A numeração é sequencial e nunca repete. O prefixo pode ser alterado em *Parâmetros de custo*.
+- Você também pode digitar o seu próprio SKU. O sistema converte para maiúsculas e bloqueia códigos repetidos.
+- Peças salvas antes desta versão aparecem com o aviso **Gerar SKUs automaticamente** no Catálogo.
+- No **Catálogo de peças**: busca por SKU, nome, categoria ou material; filtro por categoria; ordenação por SKU, nome, categoria ou preço; **Exportar CSV**; e **Catálogo em PDF**.
+- O **Catálogo em PDF** é uma vitrine para enviar aos clientes, com foto, SKU, nome, material e preço, agrupada por categoria. Opções: título, mostrar ou ocultar preços e o canal do preço (ex.: os preços do Mercado Livre). Ele respeita os filtros da tela; por exemplo, filtre "Decoração" para gerar um catálogo só dessa categoria.
+- O SKU acompanha a peça nos orçamentos: aparece abaixo da descrição na tela e no PDF, e a busca de orçamentos também encontra pelo SKU.
+
 ## Imagens dos produtos
 
 - **Na peça do catálogo:** em *Calcular preço*, use **Anexar imagem**. Também dá para arrastar a foto para o quadro. A imagem acompanha a peça em todos os orçamentos criados a partir dela.

@@ -127,3 +127,12 @@ test('validação de CPF e CNPJ', () => {
   assert.ok(Calc.validaDocumento('11.222.333/0001-81'));
   assert.ok(!Calc.validaDocumento('11.111.111/1111-11'));
 });
+
+test('SKU: geração e normalização', () => {
+  assert.strictEqual(Calc.gerarSku('RXR', 'PLA', 1), 'RXR-PLA-0001');
+  assert.strictEqual(Calc.gerarSku('rxr', 'PLA Silk', 12), 'RXR-PLA-0012');
+  assert.strictEqual(Calc.gerarSku('RXR', 'PETG-CF', 3), 'RXR-PETG-0003');
+  assert.strictEqual(Calc.gerarSku('RXR', 'Nylon (PA)', 7), 'RXR-NYLO-0007');
+  assert.strictEqual(Calc.gerarSku('', '', 5), 'RXR-GEN-0005');
+  assert.strictEqual(Calc.normSku(' vaso  geométrico 01 '), 'VASO-GEOMETRICO-01');
+});

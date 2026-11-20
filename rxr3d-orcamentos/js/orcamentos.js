@@ -68,7 +68,7 @@
       if (f.de && o.data < f.de) return false;
       if (f.ate && o.data > f.ate) return false;
       if (f.q) {
-        const txt = [numero(o), o.cliente && o.cliente.nome, o.cliente && o.cliente.documento, o.itens.map((i) => i.descricao).join(' ')].join(' ').toLowerCase();
+        const txt = [numero(o), o.cliente && o.cliente.nome, o.cliente && o.cliente.documento, o.itens.map((i) => i.descricao + ' ' + (i.sku || '')).join(' ')].join(' ').toLowerCase();
         if (!txt.includes(f.q)) return false;
       }
       return true;
@@ -393,6 +393,35 @@
   }
 
   // ---------------------------------------------------------------- PDF (impressão)
+  function cabecalhoPdf(e) {
+    const esc = UI.esc;
+    return `
+      <header class="pdf-head">
+        <img src="assets/logo.png" alt="">
+        <div class="pdf-emp">
+          <div class="pdf-marca">${esc(e.nome).replace(/3D/, '<span>3D</span>')}</div>
+          ${e.documento ? `<div>CNPJ ${esc(e.documento)}</div>` : ''}
+          ${e.endereco ? `<div>${esc(e.endereco)}</div>` : ''}
+          ${e.cidade ? `<div>${esc(e.cidade)}</div>` : ''}
+          ${e.telefone ? `<div>Tel: ${esc(e.telefone)}</div>` : ''}
+          ${e.email ? `<div>e-mail: ${esc(e.email)}</div>` : ''}
+          ${e.site ? `<div>${esc(e.site)}</div>` : ''}
+        </div>
+      </header>
+`;
+  }
+
+  /** Coloca o HTML na área de impressão, espera as imagens e abre "Imprimir / Salvar como PDF". */
+  async function imprimirHtml(html, nomeArquivo) {
+    const area = document.getElementById('print-area');
+    area.innerHTML = html;
+    await Promise.all([...area.querySelectorAll('img')].map((img) => (img.decode ? img.decode().catch(() => {}) : null)));
+    const tituloAnterior = document.title;
+    document.title = nomeArquivo;
+    setTimeout(() => { window.print(); document.title = tituloAnterior; }, 50);
+  }
+  const nomeArquivo = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '');
+
   async function imprimir(o) {
     const s = Store.settings();
     const e = s.empresa;
@@ -420,18 +449,7 @@
     const end = [c.endereco, c.numero].filter(Boolean).join(', ') + (c.complemento ? ' — ' + c.complemento : '');
     const html = `
     <div class="pdf">
-      <header class="pdf-head">
-        <img src="assets/logo.png" alt="">
-        <div class="pdf-emp">
-          <div class="pdf-marca">${esc(e.nome).replace(/3D/, '<span>3D</span>')}</div>
-          ${e.documento ? `<div>CNPJ ${esc(e.documento)}</div>` : ''}
-          ${e.endereco ? `<div>${esc(e.endereco)}</div>` : ''}
-          ${e.cidade ? `<div>${esc(e.cidade)}</div>` : ''}
-          ${e.telefone ? `<div>Tel: ${esc(e.telefone)}</div>` : ''}
-          ${e.email ? `<div>e-mail: ${esc(e.email)}</div>` : ''}
-          ${e.site ? `<div>${esc(e.site)}</div>` : ''}
-        </div>
-      </header>
+      ${cabecalhoPdf(e)}
       <table class="pdf-info"><tr>
         <th>Orçamento nº</th><td class="num-orc">${numero(o)}</td>
         <th>Emitido em</th><td>${UI.date(o.data)}</td>
@@ -473,5 +491,5 @@
     }, 50);
   }
 
-  window.Orcamentos = { STATUS, VENDIDO, statusLabel, badge, numero, lista, editor, novo, vendas, escolherEAdicionar, imprimir };
+  window.Orcamentos = { cabecalhoPdf, imprimirHtml, nomeArquivo, STATUS, VENDIDO, statusLabel, badge, numero, lista, editor, novo, vendas, escolherEAdicionar, imprimir };
 })();

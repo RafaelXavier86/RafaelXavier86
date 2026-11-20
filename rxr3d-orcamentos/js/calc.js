@@ -239,7 +239,20 @@
     return false;
   }
 
-  const Calc = { n, r2, custoPorGrama, custoEmbalagem, custoFixoHora, faixaDoPreco, taxasCanal, precoPorMargem, compor, totaisOrcamento, validaDocumento };
+  /** SKU em maiúsculas, sem acentos e espaços (só letras, números, "-" e "_"). */
+  function normSku(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()
+      .trim().replace(/\s+/g, '-').replace(/[^A-Z0-9_-]/g, '').replace(/-{2,}/g, '-');
+  }
+
+  /** Gera SKU no formato PREFIXO-MATERIAL-0001 (ex.: RXR-PETG-0012). */
+  function gerarSku(prefixo, material, seq) {
+    const pre = normSku(prefixo) || 'RXR';
+    const mat = normSku(String(material || '').split(/[\s+\-/]/)[0]).replace(/[^A-Z0-9]/g, '').slice(0, 4) || 'GEN';
+    return pre + '-' + mat + '-' + String(Math.max(1, Math.round(n(seq)))).padStart(4, '0');
+  }
+
+  const Calc = { normSku, gerarSku, n, r2, custoPorGrama, custoEmbalagem, custoFixoHora, faixaDoPreco, taxasCanal, precoPorMargem, compor, totaisOrcamento, validaDocumento };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Calc;
   else root.Calc = Calc;

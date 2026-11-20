@@ -28,6 +28,7 @@
       { nome: 'Shopee (vendas)', telefone: '', documento: '', email: '', cidade: '', uf: '' },
     ].map((c) => Store.save('clientes', c));
 
+    const cats = { 'Suporte de headset': 'Games', 'Vaso geométrico': 'Decoração', 'Chaveiro personalizado': 'Brindes', 'Engrenagem PETG (reposição)': 'Peças técnicas', 'Organizador de mesa': 'Organização', 'Capa TPU para controle': 'Games' };
     const pecas = [
       { nome: 'Suporte de headset', filamentoId: fil[0].id, equipamentoId: eq[0].id, pesoG: 85, minutos: 210, embalagemId: emb[0].id, margem: 45 },
       { nome: 'Vaso geométrico', filamentoId: fil[4].id, equipamentoId: eq[0].id, pesoG: 120, minutos: 300, acabamento: true, embalagemId: emb[2].id, margem: 50 },
@@ -35,7 +36,12 @@
       { nome: 'Engrenagem PETG (reposição)', filamentoId: fil[2].id, equipamentoId: eq[0].id, pesoG: 45, minutos: 150, projeto: true, margem: 50 },
       { nome: 'Organizador de mesa', filamentoId: fil[0].id, equipamentoId: eq[1].id, pesoG: 210, minutos: 540, embalagemId: emb[0].id, margem: 40 },
       { nome: 'Capa TPU para controle', filamentoId: fil[3].id, equipamentoId: eq[0].id, pesoG: 35, minutos: 120, embalagemId: emb[1].id, margem: 45 },
-    ].map((p) => Store.save('pecas', { nome: p.nome, input: Object.assign({ quantidade: 1, pecasPorEmbalagem: 1, acabamento: false, projeto: false, frete: 0, freteRepassado: true, canalId: 'direto', precoManual: '' }, p) }));
+    ].map((p) => {
+      const material = fil.find((f) => f.id === p.filamentoId).material;
+      p.sku = Store.nextSku(material);
+      p.categoria = cats[p.nome];
+      return p;
+    }).map((p) => Store.save('pecas', { nome: p.nome, sku: p.sku, categoria: p.categoria, input: Object.assign({ quantidade: 1, pecasPorEmbalagem: 1, acabamento: false, projeto: false, frete: 0, freteRepassado: true, canalId: 'direto', precoManual: '' }, p) }));
 
     // vendas e orçamentos espalhados nos últimos 10 meses
     let seed = 7;

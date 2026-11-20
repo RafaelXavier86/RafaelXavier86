@@ -50,6 +50,7 @@
           acabamentoPct: 5,
           projetoPct: 30,
           margemPadrao: 40,
+          skuPrefixo: 'RXR',
         },
         orcamento: {
           validadeDias: 7,
@@ -57,6 +58,7 @@
         },
         canais: JSON.parse(JSON.stringify(CANAIS_PADRAO)),
         seqOrcamento: 0,
+        seqSku: 0,
         ultimoBackup: null,
       },
       collections: {},
@@ -135,6 +137,16 @@
     setSettings(patch) {
       db.settings = Object.assign(db.settings, clone(patch));
       persist();
+    },
+    /** Próximo SKU livre para o material (pula códigos já usados). */
+    nextSku(material, usados) {
+      let sku;
+      do {
+        db.settings.seqSku = (db.settings.seqSku || 0) + 1;
+        sku = Calc.gerarSku(db.settings.params.skuPrefixo, material, db.settings.seqSku);
+      } while (usados && usados.has(sku));
+      persist();
+      return sku;
     },
     nextNumero() {
       db.settings.seqOrcamento = (db.settings.seqOrcamento || 0) + 1;

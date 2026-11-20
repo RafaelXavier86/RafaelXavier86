@@ -18,6 +18,7 @@
     { key: 'acabamentoPct', label: 'Acréscimo por acabamento', type: 'pct', span: 1 },
     { key: 'projetoPct', label: 'Acréscimo por projeto customizado', type: 'pct', span: 1 },
     { key: 'margemPadrao', label: 'Margem padrão', type: 'pct', span: 1, help: 'Sugerida em cada nova composição.' },
+    { key: 'skuPrefixo', label: 'Prefixo do SKU', span: 1, help: 'SKU automático: PREFIXO-MATERIAL-0001 (ex.: RXR-PLA-0001).' },
   ];
   const ORC_FIELDS = [
     { key: 'validadeDias', label: 'Validade do orçamento', type: 'num', suffix: 'dias', span: 1 },
