@@ -6,9 +6,9 @@
   const NAV = [
     { group: null, items: [['#/dashboard', 'Dashboard', '▦']] },
     { group: 'Precificação', items: [['#/precificacao', 'Calcular preço', '＄'], ['#/pecas', 'Catálogo de peças', '◫']] },
-    { group: 'Estoque', items: [['#/estoque-filamentos', 'Filamentos em estoque', '◉'], ['#/estoque-produtos', 'Produtos acabados', '▤']] },
+    { group: 'Estoque', items: [['#/filamentos', 'Filamentos', '◉'], ['#/estoque-produtos', 'Produtos acabados', '▤']] },
     { group: 'Vendas', items: [['#/orcamentos', 'Orçamentos', '≡'], ['#/clientes', 'Clientes', '☺']] },
-    { group: 'Custos', items: [['#/filamentos', 'Filamentos', '◎'], ['#/equipamentos', 'Equipamentos', '⎙'], ['#/embalagens', 'Embalagens', '▣'], ['#/parametros', 'Parâmetros de custo', '⚙']] },
+    { group: 'Custos', items: [['#/equipamentos', 'Equipamentos', '⎙'], ['#/embalagens', 'Embalagens', '▣'], ['#/parametros', 'Parâmetros de custo', '⚙']] },
     { group: 'Sistema', items: [['#/marketplaces', 'Marketplaces', '⇄'], ['#/config', 'Configurações e backup', '⛁']] },
   ];
 
@@ -18,10 +18,10 @@
     switch (base) {
       case 'precificacao': return Precificacao.page(id);
       case 'pecas': return Precificacao.catalogo();
-      case 'estoque-filamentos': return Estoque.filamentosPage();
+      case 'filamentos': case 'estoque-filamentos': return Estoque.filamentosPage();
       case 'estoque-produtos': return Estoque.produtosPage();
       case 'orcamentos': return id ? Orcamentos.editor(id) : Orcamentos.lista();
-      case 'clientes': case 'filamentos': case 'equipamentos': case 'embalagens': return Cadastros.page(base);
+      case 'clientes': case 'equipamentos': case 'embalagens': return Cadastros.page(base);
       case 'parametros': return Config.parametros();
       case 'marketplaces': return Config.marketplaces();
       case 'config': return Config.config();
@@ -30,7 +30,8 @@
   }
 
   function renderNav() {
-    const cur = '#/' + ((location.hash || '#/dashboard').split('/')[1] || 'dashboard');
+    let cur = '#/' + ((location.hash || '#/dashboard').split('/')[1] || 'dashboard');
+    if (cur === '#/estoque-filamentos') cur = '#/filamentos';
     const nav = document.getElementById('nav');
     nav.replaceChildren(...NAV.map((g) => h('div', { class: 'nav-group' },
       g.group ? h('span', { class: 'nav-title' }, g.group) : null,

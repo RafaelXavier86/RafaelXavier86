@@ -408,3 +408,8 @@ code.sku, .sku {
 .estoque-inicio .help { display: block; margin-top: 6px; }
 .acts { width: 1%; }
 .acts-grid { display: grid; grid-template-columns: auto auto; gap: 4px; }
+.acts-grid.three { grid-template-columns: auto auto auto; }
+.modal .form-section[hidden] { display: none; }
+.min-rolos { width: 104px; margin-left: auto; }
+.min-rolos input { height: 30px; text-align: right; padding: 0 6px; }
+.min-rolos span { padding: 0 6px; font-size: 11px; }

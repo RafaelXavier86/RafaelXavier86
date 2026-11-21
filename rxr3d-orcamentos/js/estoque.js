@@ -115,29 +115,54 @@
   }
 
   // ---------------------------------------------------------------- modais de lançamento
+  const NOVO = '__novo';
+  const CAMPOS_NOVO = ['material', 'fabricante', 'cor', 'pesoRolo', 'unRolo', 'minRolos'];
+
   function modalFilamento(tipo, filamentoId, onDone) {
     const fils = Store.all('filamentos').sort((a, b) => filNome(a).localeCompare(filNome(b), 'pt-BR'));
-    if (!fils.length) { UI.toast('Cadastre os filamentos primeiro.', 'warn'); return; }
+    if (!fils.length && tipo !== 'entrada') { UI.toast('Cadastre os filamentos primeiro.', 'warn'); return; }
     const titulos = { entrada: 'Entrada de filamento (compra)', perda: 'Perda / descarte de filamento', ajuste: 'Ajuste de inventário' };
+    const opcoes = fils.map((f) => [f.id, filNome(f)]);
+    if (tipo === 'entrada') opcoes.push([NOVO, '+ Novo filamento (cadastrar agora)']);
     const fs = [
-      { key: 'filamentoId', label: 'Filamento', type: 'select', options: fils.map((f) => [f.id, filNome(f)]), default: filamentoId, required: true, span: 3 },
+      { key: 'filamentoId', label: 'Filamento', type: 'select', options: opcoes, default: filamentoId || (fils.length ? fils[0].id : NOVO), required: true, span: 3 },
       { key: 'data', label: 'Data', type: 'date', default: UI.today(), span: 1 },
-      { key: 'qtd', label: tipo === 'ajuste' ? 'Saldo contado' : 'Quantidade', type: 'num', required: true, span: 2,
-        help: tipo === 'ajuste' ? 'Quanto há de fato na prateleira (rolos fechados + sobras).' : null },
-      { key: 'unidade', label: 'Unidade', type: 'select', options: [['rolos', 'Rolos'], ['g', 'Gramas'], ['kg', 'kg']], default: tipo === 'entrada' ? 'rolos' : 'g', span: 2 },
     ];
     if (tipo === 'entrada') {
-      fs.push({ key: 'valor', label: 'Valor total pago (com frete)', type: 'money', span: 2, help: 'Opcional.' });
+      fs.push(
+        { key: 'material', label: 'Material', suggest: Cadastros.DEFS.filamentos.fields[0].suggest, span: 1, placeholder: 'ex.: PLA' },
+        { key: 'fabricante', label: 'Fabricante', span: 1 },
+        { key: 'cor', label: 'Cor', span: 2 },
+        { key: 'pesoRolo', label: 'Peso de cada rolo', type: 'num', default: 1, span: 1 },
+        { key: 'unRolo', label: 'Unidade', type: 'select', options: [['kg', 'kg'], ['g', 'g']], default: 'kg', span: 1 },
+        { key: 'minRolos', label: 'Estoque mínimo', type: 'num', suffix: 'rolos', default: 1, span: 2 });
+    }
+    fs.push(
+      { key: 'qtd', label: tipo === 'ajuste' ? 'Saldo contado' : 'Quantidade', type: 'num', required: true, span: 2,
+        help: tipo === 'ajuste' ? 'Quanto há de fato na prateleira (rolos fechados + sobras).' : null },
+      { key: 'unidade', label: 'Unidade', type: 'select', options: [['rolos', 'Rolos'], ['g', 'Gramas'], ['kg', 'kg']], default: tipo === 'entrada' ? 'rolos' : 'g', span: 2 });
+    if (tipo === 'entrada') {
+      fs.push({ key: 'valor', label: 'Valor total pago (com frete)', type: 'money', span: 2, help: 'Define o preço do rolo usado na precificação.' });
       fs.push({ key: 'atualizar', label: 'Atualizar o preço do rolo no cadastro', type: 'check', span: 2 });
     }
     fs.push({ key: 'obs', label: 'Observação', span: 4, placeholder: tipo === 'entrada' ? 'ex.: loja, nota fiscal' : 'ex.: impressão falhou, umidade' });
     const form = UI.form(fs, { atualizar: true });
+    const titulo = h('h4', { class: 'form-section' }, 'Dados do novo filamento');
+    if (tipo === 'entrada') form.elements.material.closest('.field').before(titulo);
     const info = h('p', { class: 'help span-4' });
     form.append(info);
     const saldos = saldosFilamento();
+    const ehNovo = () => form.elements.filamentoId.value === NOVO;
     const mostra = () => {
+      if (tipo === 'entrada') {
+        const novo = ehNovo();
+        titulo.hidden = !novo;
+        CAMPOS_NOVO.forEach((k) => { form.elements[k].closest('.field').hidden = !novo; });
+        form.elements.atualizar.closest('.field').hidden = novo;
+      }
       const f = fils.find((x) => x.id === form.elements.filamentoId.value);
-      info.textContent = f ? 'Saldo atual: ' + fmtG((saldos[f.id] || vazio).saldo) + ' · rolo de ' + fmtG(pesoRolo(f)) + ' · preço cadastrado ' + UI.brl(f.preco) + '/rolo' : '';
+      info.textContent = f ? 'Saldo atual: ' + fmtG((saldos[f.id] || vazio).saldo) + ' · rolo de ' + fmtG(pesoRolo(f)) + ' · preço cadastrado ' + UI.brl(f.preco) + '/rolo'
+        : 'O filamento será cadastrado com o preço por rolo calculado a partir desta compra.';
     };
     form.addEventListener('change', mostra);
     mostra();
@@ -147,7 +172,26 @@
         { label: 'Lançar', kind: 'primary', onClick: (c) => {
           if (!UI.validate(form, fs)) return;
           const v = UI.readForm(form, fs);
-          const f = fils.find((x) => x.id === v.filamentoId);
+          let f;
+          if (tipo === 'entrada' && v.filamentoId === NOVO) {
+            const faltando = [];
+            if (!v.material) faltando.push('material');
+            if (!(n(v.pesoRolo) > 0)) faltando.push('peso do rolo');
+            if (!(n(v.valor) > 0)) faltando.push('valor pago');
+            ['material', 'pesoRolo', 'valor'].forEach((k) => form.elements[k].classList.toggle('invalid', faltando.includes({ material: 'material', pesoRolo: 'peso do rolo', valor: 'valor pago' }[k])));
+            if (faltando.length) { UI.toast('Para o novo filamento, informe: ' + faltando.join(', ') + '.', 'bad'); return; }
+            const chave = (x) => [x.material, x.fabricante, x.cor].map((s) => String(s || '').trim().toLowerCase()).join('|');
+            const existente = fils.find((x) => chave(x) === chave(v));
+            if (existente) {
+              f = existente;
+              UI.toast('Esse filamento já estava cadastrado; a entrada foi lançada nele.', 'warn');
+            } else {
+              f = Store.save('filamentos', { material: v.material, fabricante: v.fabricante, cor: v.cor, peso: n(v.pesoRolo), unidade: v.unRolo, preco: 0, estoqueMinRolos: v.minRolos === '' ? 1 : n(v.minRolos) });
+            }
+            v.atualizar = true;
+          } else {
+            f = fils.find((x) => x.id === v.filamentoId);
+          }
           const g = n(v.qtd) * (v.unidade === 'rolos' ? pesoRolo(f) : v.unidade === 'kg' ? 1000 : 1);
           let mov = g;
           if (tipo === 'perda') mov = -g;
@@ -158,9 +202,11 @@
             data: v.data || UI.today(), filamentoId: f.id, tipo, g: mov, valor: n(v.valor) || '', origem: 'manual:' + Store.uid(),
             ref: TIPOS_F[tipo] + (tipo === 'entrada' && v.unidade === 'rolos' ? ' · ' + UI.num(v.qtd, 0) + ' rolo(s)' : ''), obs: v.obs,
           }]);
-          if (tipo === 'entrada' && v.atualizar && n(v.valor) > 0 && v.unidade === 'rolos' && n(v.qtd) > 0) {
-            Store.save('filamentos', Object.assign({}, f, { preco: Calc.r2(n(v.valor) / n(v.qtd)) }));
-            UI.toast('Entrada lançada. Preço do rolo atualizado para ' + UI.brl(n(v.valor) / n(v.qtd)) + '.');
+          const rolos = pesoRolo(f) ? g / pesoRolo(f) : 0;
+          if (tipo === 'entrada' && v.atualizar && n(v.valor) > 0 && rolos > 0) {
+            const preco = Calc.r2(n(v.valor) / rolos);
+            Store.save('filamentos', Object.assign({}, Store.get('filamentos', f.id), { preco }));
+            UI.toast('Entrada lançada · preço do rolo: ' + UI.brl(preco) + '.');
           } else UI.toast('Lançamento registrado.');
           c();
           onDone && onDone();
@@ -282,11 +328,27 @@
       h('small', { class: 'help' }, 'consomem o estoque automaticamente. Vendas anteriores a essa data não mexem no estoque (evita descontar o histórico antigo).'));
   }
 
+  function excluirFilamento(f, onDone) {
+    const usadoEm = Store.all('pecas').filter((p) => Calc.partesDe(p.input || {}).some((pt) => pt.filamentoId === f.id));
+    if (usadoEm.length) {
+      UI.toast('Não dá para excluir: usado em ' + usadoEm.length + ' peça(s) do catálogo (' + usadoEm.slice(0, 3).map((p) => p.nome).join(', ') + (usadoEm.length > 3 ? '…' : '') + ').', 'bad');
+      return;
+    }
+    const movs = Store.all(MF).filter((m) => m.filamentoId === f.id && !String(m.origem).startsWith('orc:')).length;
+    UI.confirm('Excluir o filamento "' + filNome(f) + '"' + (movs ? ' e o histórico de estoque dele (' + movs + ' lançamento(s))' : '') + '? Orçamentos já emitidos não mudam.', () => {
+      Store.remove('filamentos', f.id);
+      Store.replaceWhere(MF, (m) => m.filamentoId === f.id && !String(m.origem).startsWith('orc:'), []);
+      onDone && onDone();
+    });
+  }
+
   function filamentosPage() {
     const wrap = h('div');
+    let q = '';
     const render = () => {
       const sf = saldosFilamento();
-      const fils = Store.all('filamentos').sort((a, b) => filNome(a).localeCompare(filNome(b), 'pt-BR'));
+      const todos = Store.all('filamentos').sort((a, b) => filNome(a).localeCompare(filNome(b), 'pt-BR'));
+      const fils = todos.filter((f) => !q || filNome(f).toLowerCase().includes(q));
       let valorTotal = 0;
       const rows = fils.map((f) => {
         const s = sf[f.id] || vazio;
@@ -295,37 +357,48 @@
         valorTotal += valor;
         const porDia = s.consumo30 / 30;
         return h('tr', null,
-          h('td', null, h('strong', null, filNome(f))),
-          h('td', { class: 'num' }, h('strong', { class: s.saldo < 0 ? 'neg' : '' }, s.movs ? fmtG(s.saldo) : '—'), h('div', null, situacao(s.saldo, minimo, s.movs > 0))),
-          h('td', { class: 'num' }, s.movs && pesoRolo(f) ? UI.num(s.saldo / pesoRolo(f), 2) : '—'),
-          h('td', { class: 'num muted' }, minimo ? fmtG(minimo) : '—'),
-          h('td', { class: 'num' }, s.consumo30 ? fmtG(s.consumo30) : '—'),
-          h('td', { class: 'num' }, porDia > 0 && s.saldo > 0 ? '~' + UI.int(s.saldo / porDia) + ' dias' : '—'),
+          h('td', null, h('strong', null, filNome(f)), h('small', { class: 'muted block' }, 'rolo de ' + fmtG(pesoRolo(f)))),
+          h('td', { class: 'num' }, UI.brl(f.preco), h('small', { class: 'muted block' }, 'R$ ' + UI.num(Calc.custoPorGrama(f), 4) + '/g')),
+          h('td', { class: 'num' }, h('strong', { class: s.saldo < 0 ? 'neg' : '' }, s.movs ? fmtG(s.saldo) : '—'),
+            s.movs && pesoRolo(f) ? h('small', { class: 'muted block' }, UI.num(s.saldo / pesoRolo(f), 2) + ' rolo(s)') : null,
+            h('div', null, situacao(s.saldo, minimo, s.movs > 0))),
+          h('td', { class: 'num' },
+            h('div', { class: 'affix min-rolos', title: 'Estoque mínimo em rolos. Abaixo disso o sistema avisa para repor (0 = sem aviso).' },
+              h('input', { type: 'text', inputmode: 'decimal', 'aria-label': 'Estoque mínimo em rolos', value: UI.inNum(f.estoqueMinRolos === undefined ? 1 : f.estoqueMinRolos),
+                onchange: (e) => { Store.save('filamentos', Object.assign(Store.get('filamentos', f.id), { estoqueMinRolos: Math.max(0, n(e.target.value)) })); render(); } }),
+              h('span', null, 'rolos')),
+            minimo ? h('small', { class: 'muted block' }, '= ' + fmtG(minimo)) : null),
+          h('td', { class: 'num' }, s.consumo30 ? fmtG(s.consumo30) : '—', porDia > 0 && s.saldo > 0 ? h('small', { class: 'muted block' }, 'dura ~' + UI.int(s.saldo / porDia) + ' dias') : null),
           h('td', { class: 'num' }, s.movs ? UI.brl(valor) : '—'),
-          h('td', { class: 'acts' }, h('div', { class: 'acts-grid' },
-            h('button', { class: 'btn small', onclick: () => modalFilamento('entrada', f.id, render) }, 'Entrada'),
+          h('td', { class: 'acts' }, h('div', { class: 'acts-grid three' },
+            h('button', { class: 'btn small primary', onclick: () => modalFilamento('entrada', f.id, render) }, 'Entrada'),
             h('button', { class: 'btn small', onclick: () => modalFilamento('ajuste', f.id, render) }, 'Ajuste'),
             h('button', { class: 'btn small', onclick: () => modalFilamento('perda', f.id, render) }, 'Perda'),
-            h('button', { class: 'btn small', onclick: () => historico(MF, 'filamentoId', f.id, filNome(f), render) }, 'Histórico'))));
+            h('button', { class: 'btn small', onclick: () => historico(MF, 'filamentoId', f.id, filNome(f), render) }, 'Histórico'),
+            h('button', { class: 'btn small', onclick: () => Cadastros.editar('filamentos', f, render) }, 'Editar'),
+            h('button', { class: 'btn small ghost-danger', onclick: () => excluirFilamento(f, render) }, 'Excluir'))));
       });
-      const repor = fils.filter((f) => { const s = sf[f.id] || vazio; return s.movs && s.saldo < Math.max(minFil(f), 0.0001); });
+      const repor = todos.filter((f) => { const s = sf[f.id] || vazio; return s.movs && s.saldo < Math.max(minFil(f), 0.0001); });
       const exportar = () => {
-        const linhas = [['Filamento', 'Saldo (g)', 'Rolos', 'Mínimo (g)', 'Consumo 30 dias (g)', 'Valor em estoque']];
-        fils.forEach((f) => { const s = sf[f.id] || vazio; linhas.push([filNome(f), Calc.r2(s.saldo), pesoRolo(f) ? Calc.r2(s.saldo / pesoRolo(f)) : '', minFil(f), Calc.r2(s.consumo30), Calc.r2(Math.max(0, s.saldo) * Calc.custoPorGrama(f))]); });
-        UI.download('estoque_filamentos_' + UI.today() + '.csv', UI.csv(linhas), 'text/csv');
+        const linhas = [['Material', 'Fabricante', 'Cor', 'Preço do rolo', 'Peso do rolo (g)', 'Custo por grama', 'Saldo (g)', 'Rolos', 'Mínimo (g)', 'Consumo 30 dias (g)', 'Valor em estoque']];
+        todos.forEach((f) => { const s = sf[f.id] || vazio; linhas.push([f.material, f.fabricante || '', f.cor || '', Calc.r2(n(f.preco)), pesoRolo(f), Calc.custoPorGrama(f), Calc.r2(s.saldo), pesoRolo(f) ? Calc.r2(s.saldo / pesoRolo(f)) : '', minFil(f), Calc.r2(s.consumo30), Calc.r2(Math.max(0, s.saldo) * Calc.custoPorGrama(f))]); });
+        UI.download('filamentos_' + UI.today() + '.csv', UI.csv(linhas), 'text/csv');
       };
+      const busca = h('input', { type: 'search', class: 'search', placeholder: 'Buscar material, fabricante ou cor…', value: q, oninput: (e) => { q = e.target.value.toLowerCase(); render(); const el = wrap.querySelector('.search'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); } });
       wrap.replaceChildren(
-        UI.pageHead('Estoque de filamentos', 'Saldo = entradas − consumo das vendas e produções − perdas ± ajustes.',
+        UI.pageHead('Filamentos', 'Cadastro, preço e estoque num só lugar. O preço do rolo (com frete) é o usado na precificação.',
           h('button', { class: 'btn', onclick: exportar }, 'Exportar CSV'),
-          h('button', { class: 'btn primary', onclick: () => modalFilamento('entrada', fils[0] && fils[0].id, render) }, '+ Entrada (compra)')),
+          h('button', { class: 'btn', onclick: () => Cadastros.editar('filamentos', null, render) }, '+ Cadastrar sem estoque'),
+          h('button', { class: 'btn primary', onclick: () => modalFilamento('entrada', null, render) }, '+ Entrada (compra)')),
         repor.length ? h('div', { class: 'alert warn' }, h('strong', null, 'Repor: '), repor.map((f) => filNome(f) + ' (' + fmtG((sf[f.id] || vazio).saldo) + ')').join(' · ')) : '',
         h('div', { class: 'card' },
-          fils.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
-            h('thead', null, h('tr', null, ['Filamento', 'Saldo', 'Rolos', 'Mínimo', 'Consumo 30 dias', 'Dura', 'Valor em estoque', ''].map((t, i) => h('th', { class: i >= 1 && i <= 6 ? 'num' : null }, t)))),
-            h('tbody', null, rows),
-            h('tfoot', null, h('tr', null, h('td', { colspan: 6 }, 'Valor total em estoque (custo)'), h('td', { class: 'num' }, UI.brl(valorTotal)), h('td', null, '')))))
-            : UI.empty('Nenhum filamento cadastrado.', h('a', { class: 'btn', href: '#/filamentos' }, 'Cadastrar filamentos')),
-          h('p', { class: 'help' }, 'O estoque mínimo (em rolos) é definido no cadastro do filamento. "Dura" estima quantos dias o saldo dura no ritmo de consumo dos últimos 30 dias.')),
+          todos.length ? h('div', { class: 'toolbar' }, busca) : '',
+          todos.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
+            h('thead', null, h('tr', null, ['Filamento', 'Preço do rolo', 'Saldo', 'Estoque mínimo', 'Consumo 30 dias', 'Valor em estoque', ''].map((t, i) => h('th', { class: i >= 1 && i <= 5 ? 'num' : null }, t)))),
+            h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 7, class: 'muted center' }, 'Nada encontrado.'))),
+            h('tfoot', null, h('tr', null, h('td', { colspan: 5 }, 'Valor total em estoque (custo)'), h('td', { class: 'num' }, UI.brl(valorTotal)), h('td', null, '')))))
+            : UI.empty('Nenhum filamento ainda. Lance sua primeira compra: o filamento é cadastrado junto.', h('button', { class: 'btn primary', onclick: () => modalFilamento('entrada', null, render) }, '+ Entrada (compra)')),
+          h('p', { class: 'help' }, 'Ao lançar uma compra, o preço do rolo é atualizado e passa a valer nas próximas precificações (orçamentos já emitidos não mudam). Defina o estoque mínimo (em rolos) direto na tabela: abaixo dele, a situação vira "Repor" e o Dashboard avisa.')),
         inicioCard(render));
     };
     render();

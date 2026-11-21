@@ -122,6 +122,9 @@
      */
     form(fields, values = {}) {
       const form = UI.h('form', { class: 'grid-form', novalidate: true, onsubmit: (e) => e.preventDefault() });
+      const limpa = (e) => { const t = e.target; if (t && t.classList) { t.classList.remove('invalid'); const a = t.closest('.affix'); if (a) a.classList.remove('invalid'); } };
+      form.addEventListener('input', limpa);
+      form.addEventListener('change', limpa);
       for (const f of fields) {
         if (f.type === 'section') { form.append(UI.h('h4', { class: 'form-section' }, f.label)); continue; }
         const id = 'f-' + f.key + '-' + Math.random().toString(36).slice(2, 6);

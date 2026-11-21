@@ -23,7 +23,7 @@ Funciona **direto no navegador e sem internet**. Não precisa instalar nada nem 
 | **Catálogo de peças** | Peças já precificadas, sempre recalculadas com os custos atuais. Delas você cria um orçamento com um clique. |
 | **Orçamentos** | Histórico completo com busca, filtro por status e período, e exportação CSV para o Excel. Cada orçamento tem itens, desconto, acréscimo, condições, **PDF** e envio por **WhatsApp**. |
 | **Clientes** | Nome, telefone/WhatsApp, CPF/CNPJ (validado), e-mail e endereço completo. O endereço é preenchido automaticamente pelo CEP quando há internet. |
-| **Filamentos** | Material, fabricante, cor, **preço do rolo com frete incluso**, peso e unidade. O sistema calcula o custo por grama. |
+| **Filamentos** | Em *Estoque*: material, fabricante, cor, **preço do rolo com frete incluso**, peso e unidade, junto com o saldo em estoque. O sistema calcula o custo por grama. |
 | **Equipamentos** | Marca, modelo, potência e valor de compra, com vida útil opcional. Mostra o custo de energia e a depreciação por hora. |
 | **Embalagens** | Tipo, dimensão, unidade, quantidade por unidade (ex.: pacote com 50) e valor. |
 | **Parâmetros de custo** | Tarifa de energia (R$/kWh), vida útil padrão, manutenção/h, taxa de perdas, custos fixos mensais rateados por hora, imposto, % de acabamento e de projeto, margem padrão, validade e condições do orçamento. |
@@ -82,12 +82,14 @@ Na precificação, o quadro **Materiais e partes da peça** tem uma linha por pa
 
 O menu **Estoque** tem duas telas. O saldo de cada item é a soma das suas movimentações, e cada uma pode ser vista em **Histórico**.
 
-### Filamentos em estoque
+### Filamentos (cadastro + estoque)
+Cadastro, preço e estoque ficam numa tela só (**Estoque → Filamentos**). Na **Entrada (compra)**, escolha **+ Novo filamento** para cadastrar e lançar a compra de uma vez: o preço do rolo é calculado pelo valor pago. Para um filamento que você não quer controlar no estoque, use **+ Cadastrar sem estoque**. Na precificação, a lista de filamentos mostra o saldo de cada um, e o botão **+ Novo filamento** do quadro de partes cadastra sem sair da tela.
+
 - **Entrada (compra):** informe os rolos (ou g/kg) e, se quiser, o valor pago com frete. Marque *Atualizar o preço do rolo no cadastro* para que a precificação passe a usar o preço da última compra.
 - **Consumo automático:** ao marcar um orçamento como **Aprovado** ou **Concluído**, o sistema desconta os gramas de cada filamento usados nas peças. Mudar itens, quantidades ou status, ou excluir o orçamento, refaz o desconto automaticamente. Recusar ou voltar para "em aberto" devolve o filamento.
 - **Perda / descarte** (impressão falhou, filamento úmido) e **Ajuste de inventário**: informe o saldo contado na prateleira e o sistema lança a diferença.
 - Para cada filamento a tela mostra o saldo, os rolos equivalentes, a situação (OK / Repor / Zerado), o consumo dos últimos 30 dias, quanto tempo o saldo dura nesse ritmo e o valor em estoque.
-- O **estoque mínimo** (em rolos) fica no cadastro do filamento. Abaixo dele, o Dashboard e a tela de estoque avisam para repor.
+- O **estoque mínimo** (em rolos) é editado direto na tabela de Filamentos. O padrão é 1 rolo; use 0 para não receber aviso. Abaixo do mínimo, a situação vira **Repor** e o Dashboard avisa.
 - Na precificação, se um filamento controlado não tiver saldo suficiente para a peça, aparece o aviso **Estoque insuficiente**.
 
 ### Produtos acabados

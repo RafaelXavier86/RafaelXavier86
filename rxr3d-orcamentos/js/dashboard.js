@@ -220,7 +220,7 @@
 
     const rep = window.Estoque ? Estoque.alertasReposicao() : { fil: [], prod: [] };
     const aviso = (rep.fil.length || rep.prod.length) ? h('div', { class: 'alert warn' }, h('strong', null, 'Estoque para repor: '),
-      rep.fil.length ? h('a', { href: '#/estoque-filamentos' }, rep.fil.length + ' filamento(s)') : null,
+      rep.fil.length ? h('a', { href: '#/filamentos' }, rep.fil.length + ' filamento(s)') : null,
       rep.fil.length && rep.prod.length ? ' e ' : null,
       rep.prod.length ? h('a', { href: '#/estoque-produtos' }, rep.prod.length + ' produto(s)') : null,
       ' abaixo do mínimo.') : '';

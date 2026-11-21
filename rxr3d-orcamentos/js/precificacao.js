@@ -194,7 +194,10 @@
    * tempo de impressão e quantidade por peça (conjunto).
    */
   function partesEditor(partesIniciais) {
-    const filOpts = opts('filamentos', '— filamento —');
+    const filOpts = () => {
+      const sf = window.Estoque ? Estoque.saldosFilamento() : {};
+      return opts('filamentos', '— filamento —').map(([id, l]) => [id, l + (id && sf[id] && sf[id].movs ? ' (' + Estoque.fmtG(sf[id].saldo) + ')' : '')]);
+    };
     const tbody = h('tbody');
     const totalEl = h('div', { class: 'partes-total' });
     const numIn = (v, ph, cls) => h('input', { type: 'text', inputmode: 'decimal', class: cls || '', placeholder: ph || '', value: (v === '' || v === undefined || v === null || n(v) === 0) ? '' : UI.inNum(v) });
@@ -204,7 +207,7 @@
       const m = n(pt.minutos);
       const tr = h('tr', null,
         h('td', null, h('input', { type: 'text', class: 'pt-nome', placeholder: 'ex.: Letras', value: pt.nome || '' })),
-        h('td', null, h('select', { class: 'pt-fil', 'aria-label': 'Filamento' }, filOpts.map(([v, l]) => h('option', { value: v, selected: v === (pt.filamentoId || '') }, l)))),
+        h('td', null, h('select', { class: 'pt-fil', 'aria-label': 'Filamento' }, filOpts().map(([v, l]) => h('option', { value: v, selected: v === (pt.filamentoId || '') }, l)))),
         h('td', null, h('div', { class: 'affix' }, numIn(pt.pesoG, '', 'pt-peso'), h('span', null, 'g'))),
         h('td', null, h('div', { class: 'tempo' },
           numIn(m ? Math.floor(m / 60) : '', 'h', 'pt-h'), h('span', { class: 'sep' }, ':'),
@@ -258,7 +261,18 @@
     const el = h('div', { class: 'partes span-4' },
       h('div', { class: 'partes-head' },
         h('label', null, 'Materiais e partes da peça', h('span', { class: 'req' }, ' *')),
-        h('button', { type: 'button', class: 'btn small', onclick: () => { addLinha({}).querySelector('.pt-nome').focus(); atualizaTotal(); } }, '+ Adicionar parte / cor')),
+        h('div', { class: 'actions' },
+          h('button', { type: 'button', class: 'btn small', title: 'Cadastrar um filamento que ainda não está na lista', onclick: () => Cadastros.editar('filamentos', null, (f) => {
+            const lista = filOpts();
+            tbody.querySelectorAll('.pt-fil').forEach((sel) => {
+              const atual = sel.value;
+              sel.replaceChildren(...lista.map(([v, l]) => h('option', { value: v, selected: v === atual }, l)));
+            });
+            const vazio = [...tbody.querySelectorAll('.pt-fil')].find((sel) => !sel.value);
+            if (vazio) vazio.value = f.id;
+            tbody.dispatchEvent(new Event('change', { bubbles: true }));
+          }) }, '+ Novo filamento'),
+          h('button', { type: 'button', class: 'btn small', onclick: () => { addLinha({}).querySelector('.pt-nome').focus(); atualizaTotal(); } }, '+ Adicionar parte / cor'))),
       h('div', { class: 'table-wrap' }, h('table', { class: 'partes-tab' },
         h('thead', null, h('tr', null, ['Parte (opcional)', 'Filamento', 'Peso', 'Tempo (h : min)', 'Qtd', ''].map((t) => h('th', null, t)))),
         tbody)),
