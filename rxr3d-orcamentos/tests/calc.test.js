@@ -136,3 +136,34 @@ test('SKU: geração e normalização', () => {
   assert.strictEqual(Calc.gerarSku('', '', 5), 'RXR-GEN-0005');
   assert.strictEqual(Calc.normSku(' vaso  geométrico 01 '), 'VASO-GEOMETRICO-01');
 });
+
+test('peça multipartes: cada parte com filamento, peso, tempo e quantidade', () => {
+  const filamentos = {
+    pla: { preco: 100, peso: 1, unidade: 'kg' },   // 0,10/g
+    petg: { preco: 150, peso: 1, unidade: 'kg' },  // 0,15/g
+  };
+  const input = {
+    quantidade: 2, margem: 0,
+    partes: [
+      { nome: 'Letras', filamentoId: 'pla', pesoG: 30, minutos: 60, qtd: 3 },  // 90 g · 3 h · R$ 9
+      { nome: 'Base', filamentoId: 'petg', pesoG: 100, minutos: 120, qtd: 1 }, // 100 g · 2 h · R$ 15
+    ],
+  };
+  const r = Calc.compor(input, { filamentos, equipamento: { potencia: 0, valor: 0 }, canal: direto, params });
+  close(r.unit.material, 24);
+  close(r.pesoPecaG, 190);
+  close(r.horasPeca, 5);
+  close(r.horasTotal, 10);
+  close(r.custoTotal, 48);
+  const pla = r.consumo.find((c) => c.filamentoId === 'pla');
+  const petg = r.consumo.find((c) => c.filamentoId === 'petg');
+  close(pla.g, 180); close(pla.custo, 18);
+  close(petg.g, 200); close(petg.custo, 30);
+});
+
+test('formato antigo (um material) continua igual', () => {
+  const a = Calc.compor({ pesoG: 100, minutos: 120, quantidade: 1, margem: 50 }, { filamento, equipamento, canal: direto, params });
+  const b = Calc.compor({ quantidade: 1, margem: 50, partes: [{ filamentoId: 'x', pesoG: 100, minutos: 120, qtd: 1 }] }, { filamentos: { x: filamento }, equipamento, canal: direto, params });
+  close(a.precoUnitario, b.precoUnitario);
+  close(a.precoUnitario, 24.8);
+});

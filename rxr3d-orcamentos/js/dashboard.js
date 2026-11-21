@@ -92,6 +92,25 @@
     return [...map.values()].sort((a, b) => b.lucro - a.lucro).slice(0, 10);
   }
 
+  /** Gramas de filamento por item (itens antigos: calculado pelas partes guardadas). */
+  function consumoItem(it) {
+    if (Array.isArray(it.consumo)) return it.consumo;
+    if (!it.input) return [];
+    const q = n(it.quantidade) || 1;
+    return Calc.partesDe(it.input).filter((p) => p.filamentoId).map((p) => ({ filamentoId: p.filamentoId, g: n(p.pesoG) * (n(p.qtd) || 1) * q, custo: null }));
+  }
+
+  function consumoFilamento(vendas) {
+    const map = new Map();
+    for (const o of vendas) for (const it of o.itens) for (const c of consumoItem(it)) {
+      const x = map.get(c.filamentoId) || { filamentoId: c.filamentoId, g: 0, custo: 0 };
+      x.g += n(c.g);
+      x.custo += c.custo === null ? n(c.g) * Calc.custoPorGrama(Store.get('filamentos', c.filamentoId)) : n(c.custo);
+      map.set(c.filamentoId, x);
+    }
+    return [...map.values()].sort((a, b) => b.g - a.g);
+  }
+
   function page() {
     const todas = Store.all('orcamentos');
     const vendasTodas = Orcamentos.vendas();
@@ -128,6 +147,23 @@
       const periodo = !state.ano ? 'Visão global (todo o histórico)' : (state.mes ? MESES_LONGOS[+state.mes - 1] + ' de ' + state.ano : 'Ano de ' + state.ano);
       const k = (label, value, sub, cls) => h('div', { class: 'kpi ' + (cls || '') }, h('span', { class: 'kpi-label' }, label), h('strong', null, value), sub ? h('small', null, sub) : null);
       const top = topProdutos(vendas);
+      const cons = consumoFilamento(vendas);
+      const totalG = cons.reduce((s, c) => s + c.g, 0);
+      const cardConsumo = h('div', { class: 'card' }, h('h3', null, 'Consumo de filamento'),
+        h('p', { class: 'sub' }, 'Gramas usados nas vendas do período, por filamento (perdas por falha não incluídas). Total: ' + UI.num(totalG / 1000, 2) + ' kg.'),
+        cons.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
+          h('thead', null, h('tr', null, ['Filamento', 'Consumo', 'Rolos', 'Custo do material', '% do total'].map((t, i) => h('th', { class: i ? 'num' : null }, t)))),
+          h('tbody', null, cons.map((c) => {
+            const f = Store.get('filamentos', c.filamentoId);
+            const rolo = f ? n(f.peso) * (String(f.unidade).toLowerCase() === 'kg' ? 1000 : 1) : 0;
+            return h('tr', null,
+              h('td', null, f ? h('strong', null, [f.material, f.fabricante, f.cor].filter(Boolean).join(' · ')) : h('span', { class: 'muted' }, 'filamento excluído')),
+              h('td', { class: 'num' }, c.g >= 1000 ? UI.num(c.g / 1000, 2) + ' kg' : UI.num(c.g, 0) + ' g'),
+              h('td', { class: 'num' }, rolo ? UI.num(c.g / rolo, 2) : '—'),
+              h('td', { class: 'num' }, UI.brl(c.custo)),
+              h('td', { class: 'num' }, totalG ? UI.pct(c.g / totalG * 100) : '—'));
+          }))))
+          : UI.empty('Nenhum consumo registrado no período.'));
 
       // tabela mês a mês (ano selecionado)
       const tabelaMeses = state.ano ? h('div', { class: 'card' }, h('h3', null, 'Resumo mês a mês — ' + state.ano),
@@ -165,6 +201,7 @@
               h('td', { class: 'num' }, UI.brl(p.receita)), h('td', { class: 'num ' + (p.lucro < 0 ? 'neg' : 'pos') }, UI.brl(p.lucro)),
               h('td', { class: 'num' }, p.receita ? UI.pct(p.lucro / p.receita * 100) : '—'), h('td', { class: 'num' }, p.horas ? UI.brl(p.lucro / p.horas) : '—'))))))
             : UI.empty('Nenhuma venda no período. Orçamentos com status Aprovado ou Concluído aparecem aqui.')),
+        cardConsumo,
         tabelaMeses);
     };
 
@@ -186,5 +223,5 @@
     return wrap;
   }
 
-  window.Dashboard = { page, agregar, topProdutos };
+  window.Dashboard = { consumoFilamento, page, agregar, topProdutos };
 })();

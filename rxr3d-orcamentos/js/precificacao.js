@@ -20,10 +20,20 @@
   const catDe = (p) => p.categoria || (p.input && p.input.categoria) || '';
 
   /** Gera SKU para a peça se ainda não tiver; devolve o SKU. */
-  function materialDe(input) {
-    const fil = input && input.filamentoId ? Store.get('filamentos', input.filamentoId) : null;
-    return fil ? fil.material : '';
+  function filamentosDe(input) {
+    const ids = [...new Set(Calc.partesDe(input || {}).map((p) => p.filamentoId).filter(Boolean))];
+    return ids.map((id) => Store.get('filamentos', id)).filter(Boolean);
   }
+  /** Material para o SKU: o material da peça, ou MULTI quando há materiais diferentes. */
+  function materialDe(input) {
+    const mats = [...new Set(filamentosDe(input).map((f) => Calc.normSku(f.material).split('-')[0]))];
+    return mats.length > 1 ? 'MULTI' : (mats[0] || '');
+  }
+  /** "PLA Branco + PETG Azul" */
+  function materiaisTexto(input) {
+    return filamentosDe(input).map((f) => f.material + (f.cor ? ' ' + f.cor : '')).join(' + ');
+  }
+  const nPartes = (input) => Calc.partesDe(input || {}).length;
   function skusUsados(excetoId) {
     return new Set(Store.all('pecas').filter((p) => p.id !== excetoId).map(skuDe).filter(Boolean));
   }
@@ -34,18 +44,13 @@
 
   function fields() {
     const s = Store.settings();
-    const fil = opts('filamentos', '— selecione —');
     const eqs = opts('equipamentos', '— selecione —');
     return [
       { key: 'nome', label: 'Nome da peça', required: true, span: 2 },
       { key: 'sku', label: 'SKU (código)', span: 1, placeholder: 'automático', help: 'Em branco = gerado ao salvar no catálogo.' },
       { key: 'categoria', label: 'Categoria', span: 1, suggest: categorias(), placeholder: 'ex.: Decoração' },
-      { key: 'filamentoId', label: 'Material (filamento)', type: 'select', options: fil, required: true, span: 2 },
       { key: 'equipamentoId', label: 'Equipamento', type: 'select', options: eqs, required: true, span: 2, default: eqs[1] ? eqs[1][0] : '' },
-      { key: 'pesoG', label: 'Peso da peça', type: 'num', suffix: 'g', required: true, span: 1, help: 'Peso informado pelo fatiador, com suportes.' },
-      { key: 'horas', label: 'Tempo de impressão', type: 'num', suffix: 'h', span: 1 },
-      { key: 'min', label: ' ', type: 'num', suffix: 'min', span: 1 },
-      { key: 'quantidade', label: 'Quantidade', type: 'num', suffix: 'pç', default: 1, span: 1 },
+      { key: 'quantidade', label: 'Quantidade', type: 'num', suffix: 'un.', default: 1, span: 1, help: 'Peças (ou conjuntos) a produzir.' },
       { key: 'acabamento', label: 'Acabamento (+' + UI.num(s.params.acabamentoPct, 0) + '% no custo)', type: 'select', options: SIMNAO, span: 2 },
       { key: 'projeto', label: 'Projeto customizado (+' + UI.num(s.params.projetoPct, 0) + '% no custo)', type: 'select', options: SIMNAO, span: 2 },
       { key: 'embalagemId', label: 'Embalagem', type: 'select', options: opts('embalagens', 'Sem embalagem'), span: 2 },
@@ -72,8 +77,8 @@
   }
   function fromForm(v) {
     return {
-      nome: v.nome, sku: Calc.normSku(v.sku), categoria: (v.categoria || '').trim(), filamentoId: v.filamentoId, equipamentoId: v.equipamentoId, embalagemId: v.embalagemId,
-      pesoG: n(v.pesoG), minutos: n(v.horas) * 60 + n(v.min), quantidade: Math.max(1, Math.round(n(v.quantidade) || 1)),
+      nome: v.nome, sku: Calc.normSku(v.sku), categoria: (v.categoria || '').trim(), equipamentoId: v.equipamentoId, embalagemId: v.embalagemId,
+      quantidade: Math.max(1, Math.round(n(v.quantidade) || 1)),
       acabamento: v.acabamento === 'sim', projeto: v.projeto === 'sim',
       pecasPorEmbalagem: Math.max(1, Math.round(n(v.pecasPorEmbalagem) || 1)),
       margem: n(v.margem), frete: n(v.frete), freteRepassado: v.freteModo !== 'absorvido',
@@ -86,6 +91,7 @@
     const cid = canalId || input.canalId || 'direto';
     return {
       filamento: input.filamentoId ? Store.get('filamentos', input.filamentoId) : null,
+      filamentos: Object.fromEntries(Store.all('filamentos').map((f) => [f.id, f])),
       equipamento: input.equipamentoId ? Store.get('equipamentos', input.equipamentoId) : null,
       embalagem: input.embalagemId ? Store.get('embalagens', input.embalagemId) : null,
       canal: s.canais.find((c) => c.id === cid) || null,
@@ -124,7 +130,9 @@
 
     const L = res.lote;
     const linhas = [
-      ['Material', L.material, UI.num(res.pesoTotalG, 0) + ' g'],
+      ...(res.consumo.length > 1
+        ? res.consumo.map((c) => { const f = Store.get('filamentos', c.filamentoId); return ['Material · ' + (f ? f.material + (f.cor ? ' ' + f.cor : '') : '?'), c.custo, UI.num(c.g, 0) + ' g']; })
+        : [['Material', L.material, UI.num(res.pesoTotalG, 0) + ' g']]),
       ['Energia elétrica', L.energia],
       ['Depreciação do equipamento', L.depreciacao],
       ['Manutenção', L.manutencao],
@@ -177,6 +185,85 @@
   }
 
   /**
+   * Quadro de partes: cada linha é uma parte/cor da peça com filamento, peso,
+   * tempo de impressão e quantidade por peça (conjunto).
+   */
+  function partesEditor(partesIniciais) {
+    const filOpts = opts('filamentos', '— filamento —');
+    const tbody = h('tbody');
+    const totalEl = h('div', { class: 'partes-total' });
+    const numIn = (v, ph, cls) => h('input', { type: 'text', inputmode: 'decimal', class: cls || '', placeholder: ph || '', value: (v === '' || v === undefined || v === null || n(v) === 0) ? '' : UI.inNum(v) });
+
+    const addLinha = (pt) => {
+      pt = pt || {};
+      const m = n(pt.minutos);
+      const tr = h('tr', null,
+        h('td', null, h('input', { type: 'text', class: 'pt-nome', placeholder: 'ex.: Letras', value: pt.nome || '' })),
+        h('td', null, h('select', { class: 'pt-fil', 'aria-label': 'Filamento' }, filOpts.map(([v, l]) => h('option', { value: v, selected: v === (pt.filamentoId || '') }, l)))),
+        h('td', null, h('div', { class: 'affix' }, numIn(pt.pesoG, '', 'pt-peso'), h('span', null, 'g'))),
+        h('td', null, h('div', { class: 'tempo' },
+          numIn(m ? Math.floor(m / 60) : '', 'h', 'pt-h'), h('span', { class: 'sep' }, ':'),
+          numIn(m ? Math.round(m % 60) : '', 'min', 'pt-m'))),
+        h('td', null, h('div', { class: 'affix' }, numIn(pt.qtd || 1, '1', 'pt-qtd'), h('span', null, '×'))),
+        h('td', null, h('button', { type: 'button', class: 'btn-icon', 'aria-label': 'Remover parte', title: 'Remover parte', onclick: () => {
+          if (tbody.children.length > 1) { tr.remove(); tbody.dispatchEvent(new Event('input', { bubbles: true })); }
+        } }, '✕')));
+      tbody.append(tr);
+      return tr;
+    };
+    const ler = () => [...tbody.children].map((tr) => ({
+      nome: tr.querySelector('.pt-nome').value.trim(),
+      filamentoId: tr.querySelector('.pt-fil').value,
+      pesoG: n(tr.querySelector('.pt-peso').value),
+      minutos: n(tr.querySelector('.pt-h').value) * 60 + n(tr.querySelector('.pt-m').value),
+      qtd: Math.max(1, Math.round(n(tr.querySelector('.pt-qtd').value) || 1)),
+    }));
+    const get = () => {
+      const lidas = ler();
+      const uteis = lidas.filter((p) => p.filamentoId || p.pesoG || p.minutos);
+      return uteis.length ? uteis : lidas.slice(0, 1);
+    };
+    const atualizaTotal = () => {
+      const ps = get();
+      const g = ps.reduce((s, p) => s + p.pesoG * p.qtd, 0);
+      const min = ps.reduce((s, p) => s + p.minutos * p.qtd, 0);
+      const pecas = ps.reduce((s, p) => s + p.qtd, 0);
+      totalEl.textContent = 'Por peça/conjunto: ' + UI.num(g, 0) + ' g · ' + UI.horas(min / 60) + ' de impressão · ' + pecas + ' parte(s) impressa(s)';
+    };
+    const valid = () => {
+      let ok = true;
+      [...tbody.children].forEach((tr, i) => {
+        const fil = tr.querySelector('.pt-fil'), peso = tr.querySelector('.pt-peso');
+        const vazia = !fil.value && !n(peso.value) && !n(tr.querySelector('.pt-h').value) && !n(tr.querySelector('.pt-m').value);
+        const badFil = !fil.value && (!vazia || i === 0);
+        const badPeso = !n(peso.value) && (!vazia || i === 0);
+        fil.classList.toggle('invalid', badFil);
+        peso.closest('.affix').classList.toggle('invalid', badPeso);
+        if (badFil || badPeso) ok = false;
+      });
+      if (!ok) UI.toast('Informe filamento e peso de cada parte.', 'bad');
+      return ok;
+    };
+
+    (partesIniciais && partesIniciais.length ? partesIniciais : [{}]).forEach(addLinha);
+    tbody.addEventListener('input', atualizaTotal);
+    tbody.addEventListener('change', atualizaTotal);
+    atualizaTotal();
+
+    const el = h('div', { class: 'partes span-4' },
+      h('div', { class: 'partes-head' },
+        h('label', null, 'Materiais e partes da peça', h('span', { class: 'req' }, ' *')),
+        h('button', { type: 'button', class: 'btn small', onclick: () => { addLinha({}).querySelector('.pt-nome').focus(); atualizaTotal(); } }, '+ Adicionar parte / cor')),
+      h('div', { class: 'table-wrap' }, h('table', { class: 'partes-tab' },
+        h('thead', null, h('tr', null, ['Parte (opcional)', 'Filamento', 'Peso', 'Tempo (h : min)', 'Qtd', ''].map((t) => h('th', null, t)))),
+        tbody)),
+      totalEl,
+      h('small', { class: 'help' }, 'Peso e tempo de cada parte conforme o fatiador. "Qtd" = quantas vezes essa parte é impressa por peça/conjunto. ',
+        'Impressão multicor de uma vez (AMS): lance o tempo só na linha principal e, nas outras cores, apenas o peso gasto (inclua a purga).'));
+    return { el, get, valid };
+  }
+
+  /**
    * Monta o formulário de composição com resultado ao vivo.
    * Retorna { el, get(): {input,res}, valid() }.
    */
@@ -187,9 +274,17 @@
     const cmp = h('div');
     let imagemId = (input && input.imagemId) || '';
     const imgField = Imagens.campo(imagemId, (id) => { imagemId = id; });
+    const partesIni = (input && (input.partes || input.filamentoId || input.pesoG)) ? Calc.partesDe(input) : [];
+    const partesEd = partesEditor(partesIni);
+    form.elements.categoria.closest('.field').after(partesEd.el);
     const get = () => {
       const inp = fromForm(UI.readForm(form, fs));
       inp.imagemId = imagemId;
+      inp.partes = partesEd.get();
+      // resumo para listas e compatibilidade: 1º filamento, peso e tempo por peça
+      inp.filamentoId = (inp.partes.find((p) => p.filamentoId) || {}).filamentoId || '';
+      inp.pesoG = inp.partes.reduce((s, p) => s + p.pesoG * p.qtd, 0);
+      inp.minutos = inp.partes.reduce((s, p) => s + p.minutos * p.qtd, 0);
       return { input: inp, res: calcular(inp) };
     };
     const update = () => {
@@ -203,12 +298,11 @@
     const el = h('div', { class: 'pricing' },
       h('div', { class: 'pricing-form card' }, faltaCadastro(), form, imgField),
       h('div', { class: 'pricing-out' }, out));
-    return { el, cmp, get, valid: () => UI.validate(form, fs), form };
+    return { el, cmp, get, valid: () => UI.validate(form, fs) && partesEd.valid(), form };
   }
 
   /** Converte uma composição em item de orçamento (com fotografia dos valores). */
   function toItem(input, res, prev) {
-    const fil = input.filamentoId ? Store.get('filamentos', input.filamentoId) : null;
     return Object.assign({}, prev || {}, {
       id: (prev && prev.id) || Store.uid(),
       tipo: 'peca',
@@ -216,7 +310,7 @@
       descricao: (prev && prev.descricao && prev.nomeOrig === input.nome) ? prev.descricao : input.nome,
       nomeOrig: input.nome,
       sku: input.sku || '',
-      detalhe: [input.sku ? 'SKU ' + input.sku : '', fil ? fil.material + (fil.cor ? ' ' + fil.cor : '') : '', input.acabamento ? 'com acabamento' : '', input.projeto ? 'projeto customizado' : ''].filter(Boolean).join(' · '),
+      detalhe: [input.sku ? 'SKU ' + input.sku : '', materiaisTexto(input), nPartes(input) > 1 ? nPartes(input) + ' partes' : '', input.acabamento ? 'com acabamento' : '', input.projeto ? 'projeto customizado' : ''].filter(Boolean).join(' · '),
       quantidade: res.quantidade,
       valorUnit: res.precoTotal / res.quantidade,
       valorTotal: res.precoTotal,
@@ -225,6 +319,7 @@
       horas: res.horasTotal,
       pecas: res.quantidade,
       pesoG: res.pesoTotalG,
+      consumo: res.consumo,
       input,
       resumo: { precoUnitario: res.precoUnitario, custoUnitario: res.custoUnitario, margemPct: res.margemPct, markup: res.markup, lucroHora: res.lucroHora, canalId: input.canalId },
     });
@@ -271,8 +366,7 @@
   // ---------------------------------------------------------------- catálogo de peças
   function linhaCatalogo(p, canalId) {
     const r = calcular(Object.assign({}, p.input, { quantidade: 1, frete: 0, precoManual: canalId ? '' : p.input.precoManual }), canalId);
-    const fil = p.input.filamentoId ? Store.get('filamentos', p.input.filamentoId) : null;
-    return { p, r, fil, sku: skuDe(p), cat: catDe(p) };
+    return { p, r, mat: materiaisTexto(p.input), sku: skuDe(p), cat: catDe(p) };
   }
 
   function catalogo() {
@@ -282,7 +376,7 @@
     const filtrar = () => Store.all('pecas').map((p) => linhaCatalogo(p)).filter((l) => {
       if (f.cat && (l.cat || '(sem categoria)') !== f.cat) return false;
       if (!f.q) return true;
-      return [l.p.nome, l.sku, l.cat, l.fil && l.fil.material].join(' ').toLowerCase().includes(f.q);
+      return [l.p.nome, l.sku, l.cat, l.mat].join(' ').toLowerCase().includes(f.q);
     }).sort((a, b) => {
       if (f.ordem === 'nome') return a.p.nome.localeCompare(b.p.nome, 'pt-BR');
       if (f.ordem === 'categoria') return (a.cat || '~').localeCompare(b.cat || '~', 'pt-BR') || a.p.nome.localeCompare(b.p.nome, 'pt-BR');
@@ -314,14 +408,14 @@
         tbody.append(h('tr', null, h('td', { colspan: 10, class: 'muted center' }, (f.q || f.cat) ? 'Nada encontrado.' : 'Nenhuma peça salva. Use a Precificação e clique em "Salvar no catálogo".')));
         return;
       }
-      for (const { p, r, fil, sku, cat } of rows) {
+      for (const { p, r, mat, sku, cat } of rows) {
         tbody.append(h('tr', null,
           h('td', null, sku ? h('code', { class: 'sku' }, sku) : h('span', { class: 'muted' }, '—')),
           h('td', null, h('div', { class: 'with-thumb' }, Imagens.mini(p.input.imagemId), h('a', { href: '#/precificacao/' + p.id }, h('strong', null, p.nome)))),
           h('td', null, cat || h('span', { class: 'muted' }, '—')),
-          h('td', null, fil ? fil.material + (fil.cor ? ' ' + fil.cor : '') : h('span', { class: 'neg' }, 'filamento excluído')),
-          h('td', { class: 'num' }, UI.num(p.input.pesoG, 0) + ' g'),
-          h('td', { class: 'num' }, UI.horas(n(p.input.minutos) / 60)),
+          h('td', null, mat || h('span', { class: 'neg' }, 'filamento excluído'), nPartes(p.input) > 1 ? h('small', { class: 'muted block' }, nPartes(p.input) + ' partes') : null),
+          h('td', { class: 'num' }, UI.num(r.pesoPecaG, 0) + ' g'),
+          h('td', { class: 'num' }, UI.horas(r.horasPeca)),
           h('td', { class: 'num' }, UI.brl(r.custoUnitario)),
           h('td', { class: 'num strong' }, UI.brl(r.precoUnitario)),
           h('td', { class: 'num' }, UI.pct(r.margemPct)),
@@ -334,9 +428,9 @@
 
     const cats = [...new Set(Store.all('pecas').map((p) => catDe(p) || '(sem categoria)'))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
     const exportar = () => {
-      const linhas = [['SKU', 'Peça', 'Categoria', 'Material', 'Cor', 'Peso (g)', 'Tempo (h)', 'Custo unitário', 'Preço unitário', 'Margem %']];
-      for (const { p, r, fil, sku, cat } of filtrar()) {
-        linhas.push([sku, p.nome, cat, fil ? fil.material : '', fil ? fil.cor || '' : '', n(p.input.pesoG), Calc.r2(n(p.input.minutos) / 60), Calc.r2(r.custoUnitario), Calc.r2(r.precoUnitario), Calc.r2(r.margemPct)]);
+      const linhas = [['SKU', 'Peça', 'Categoria', 'Materiais', 'Partes', 'Peso (g)', 'Tempo (h)', 'Custo unitário', 'Preço unitário', 'Margem %']];
+      for (const { p, r, mat, sku, cat } of filtrar()) {
+        linhas.push([sku, p.nome, cat, mat, nPartes(p.input), Calc.r2(r.pesoPecaG), Calc.r2(r.horasPeca), Calc.r2(r.custoUnitario), Calc.r2(r.precoUnitario), Calc.r2(r.margemPct)]);
       }
       UI.download('catalogo_rxr3d_' + UI.today() + '.csv', UI.csv(linhas), 'text/csv');
     };
@@ -398,7 +492,7 @@
         <figcaption>
           ${l.sku ? `<span class="cat-sku">${esc(l.sku)}</span>` : ''}
           <strong>${esc(p.nome)}</strong>
-          ${op.detalhes && l.fil ? `<small>${esc(l.fil.material + (l.fil.cor ? ' · ' + l.fil.cor : ''))}</small>` : ''}
+          ${op.detalhes && l.mat ? `<small>${esc(l.mat)}</small>` : ''}
           ${op.precos === 'sim' ? `<span class="cat-preco">${UI.brl(l.r.precoUnitario)}</span>` : ''}
         </figcaption></figure>`;
     };
@@ -418,5 +512,5 @@
     Orcamentos.imprimirHtml(html, Orcamentos.nomeArquivo(op.titulo || 'Catalogo') + '_' + UI.today());
   }
 
-  window.Precificacao = { page, catalogo, editor, calcular, toItem, toForm, fromForm, imprimirCatalogo };
+  window.Precificacao = { materiaisTexto, filamentosDe, page, catalogo, editor, calcular, toItem, toForm, fromForm, imprimirCatalogo };
 })();

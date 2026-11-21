@@ -28,16 +28,28 @@
       { nome: 'Shopee (vendas)', telefone: '', documento: '', email: '', cidade: '', uf: '' },
     ].map((c) => Store.save('clientes', c));
 
-    const cats = { 'Suporte de headset': 'Games', 'Vaso geométrico': 'Decoração', 'Chaveiro personalizado': 'Brindes', 'Engrenagem PETG (reposição)': 'Peças técnicas', 'Organizador de mesa': 'Organização', 'Capa TPU para controle': 'Games' };
+    const cats = { 'Suporte de headset': 'Games', 'Vaso geométrico': 'Decoração', 'Chaveiro personalizado': 'Brindes', 'Engrenagem PETG (reposição)': 'Peças técnicas', 'Organizador de mesa': 'Organização', 'Capa TPU para controle': 'Games', 'Letreiro 3D multipartes': 'Decoração' };
     const pecas = [
       { nome: 'Suporte de headset', filamentoId: fil[0].id, equipamentoId: eq[0].id, pesoG: 85, minutos: 210, embalagemId: emb[0].id, margem: 45 },
       { nome: 'Vaso geométrico', filamentoId: fil[4].id, equipamentoId: eq[0].id, pesoG: 120, minutos: 300, acabamento: true, embalagemId: emb[2].id, margem: 50 },
       { nome: 'Chaveiro personalizado', filamentoId: fil[1].id, equipamentoId: eq[1].id, pesoG: 8, minutos: 25, projeto: true, embalagemId: emb[1].id, pecasPorEmbalagem: 10, margem: 60 },
       { nome: 'Engrenagem PETG (reposição)', filamentoId: fil[2].id, equipamentoId: eq[0].id, pesoG: 45, minutos: 150, projeto: true, margem: 50 },
       { nome: 'Organizador de mesa', filamentoId: fil[0].id, equipamentoId: eq[1].id, pesoG: 210, minutos: 540, embalagemId: emb[0].id, margem: 40 },
+      { nome: 'Letreiro 3D multipartes', equipamentoId: eq[0].id, margem: 45, acabamento: true, projeto: true, embalagemId: emb[2].id,
+        partes: [
+          { nome: 'Letras', filamentoId: fil[1].id, pesoG: 22, minutos: 50, qtd: 6 },
+          { nome: 'Contorno das letras', filamentoId: fil[0].id, pesoG: 9, minutos: 0, qtd: 6 },
+          { nome: 'Base', filamentoId: fil[2].id, pesoG: 140, minutos: 260, qtd: 1 },
+        ] },
       { nome: 'Capa TPU para controle', filamentoId: fil[3].id, equipamentoId: eq[0].id, pesoG: 35, minutos: 120, embalagemId: emb[1].id, margem: 45 },
     ].map((p) => {
-      const material = fil.find((f) => f.id === p.filamentoId).material;
+      if (p.partes) {
+        p.filamentoId = p.partes[0].filamentoId;
+        p.pesoG = p.partes.reduce((s, x) => s + x.pesoG * x.qtd, 0);
+        p.minutos = p.partes.reduce((s, x) => s + x.minutos * x.qtd, 0);
+      }
+      const mats = [...new Set((p.partes || [p]).map((x) => fil.find((f) => f.id === x.filamentoId).material))];
+      const material = mats.length > 1 ? 'MULTI' : mats[0];
       p.sku = Store.nextSku(material);
       p.categoria = cats[p.nome];
       return p;

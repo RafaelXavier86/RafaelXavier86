@@ -19,7 +19,7 @@ Funciona **direto no navegador e sem internet**. Não precisa instalar nada nem 
 | Módulo | O que faz |
 |---|---|
 | **Dashboard** | Visão global ou por ano/mês com faturamento, custos, lucro, margem média, horas impressas, peças produzidas, conversão de orçamentos e valor em aberto. Traz o gráfico **Receita × Custos × Lucro**, os **produtos mais rentáveis** e o resumo mês a mês. Clique em um mês da tabela para filtrar. |
-| **Calcular preço** | Composição de preço de uma peça com resultado ao vivo e **comparativo por canal** (venda direta, Mercado Livre Clássico/Premium e Shopee). |
+| **Calcular preço** | Composição de preço de uma peça (com uma ou várias partes/materiais) com resultado ao vivo e **comparativo por canal** (venda direta, Mercado Livre Clássico/Premium e Shopee). |
 | **Catálogo de peças** | Peças já precificadas, sempre recalculadas com os custos atuais. Delas você cria um orçamento com um clique. |
 | **Orçamentos** | Histórico completo com busca, filtro por status e período, e exportação CSV para o Excel. Cada orçamento tem itens, desconto, acréscimo, condições, **PDF** e envio por **WhatsApp**. |
 | **Clientes** | Nome, telefone/WhatsApp, CPF/CNPJ (validado), e-mail e endereço completo. O endereço é preenchido automaticamente pelo CEP quando há internet. |
@@ -59,6 +59,24 @@ Em um orçamento, clique em **Gerar PDF** e escolha **"Salvar como PDF"** como d
 Custos e lucro **não** saem no PDF; eles aparecem só no quadro "Uso interno".
 
 Dica: na janela de impressão, desmarque "Cabeçalhos e rodapés" para o PDF sair sem a data e o caminho do arquivo.
+
+## Peças com vários materiais ou cores (multipartes)
+
+Na precificação, o quadro **Materiais e partes da peça** tem uma linha por parte ou cor:
+
+| Campo | O que informar |
+|---|---|
+| Parte | Nome opcional (ex.: Letras, Base, Suporte) |
+| Filamento | O filamento/cor daquela parte |
+| Peso | Gramas da parte, conforme o fatiador |
+| Tempo (h : min) | Tempo de impressão da parte |
+| Qtd | Quantas vezes essa parte é impressa por peça/conjunto (ex.: 8 letras) |
+
+- Use **+ Adicionar parte / cor** para cada material. Peças de um material só usam uma linha.
+- O custo de cada filamento entra separado na *Composição do custo*. Peso e tempo do conjunto aparecem somados logo abaixo do quadro.
+- **Impressão multicor de uma vez (AMS):** lance o tempo só na linha principal; nas outras cores, informe apenas o peso gasto, incluindo a purga.
+- Peças com materiais diferentes recebem SKU `RXR-MULT-0001`.
+- **Controle de gasto:** cada venda guarda os gramas usados de cada filamento. O Dashboard mostra o quadro **Consumo de filamento** do período, com kg, rolos equivalentes, custo do material e % do total.
 
 ## SKU (código das peças) e catálogo
 

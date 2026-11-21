@@ -102,6 +102,37 @@
    *          frete, freteRepassado, precoManual }
    * ctx:   { filamento, equipamento, embalagem, canal, params }
    */
+  /**
+   * Partes da peça (multimaterial / multicor). Sem "partes", usa o formato antigo
+   * de um único material: { filamentoId, pesoG, minutos }.
+   */
+  function partesDe(input) {
+    if (input && Array.isArray(input.partes) && input.partes.length) return input.partes;
+    return [{ nome: '', filamentoId: input ? input.filamentoId : '', pesoG: input ? input.pesoG : 0, minutos: input ? input.minutos : 0, qtd: 1 }];
+  }
+
+  /** Custo de material, peso e tempo de um conjunto, e o consumo por filamento. */
+  function materiais(input, ctx) {
+    const partes = partesDe(input);
+    const filDe = (id) => (ctx.filamentos ? ctx.filamentos[id] : null) || (ctx.filamentos && id ? null : ctx.filamento) || null;
+    const consumo = {};
+    let custo = 0, pesoG = 0, minutos = 0;
+    const det = partes.map((pt) => {
+      const q = Math.max(1, Math.round(n(pt.qtd) || 1));
+      const fil = filDe(pt.filamentoId);
+      const g = n(pt.pesoG) * q;
+      const c = g * custoPorGrama(fil);
+      const m = n(pt.minutos) * q;
+      custo += c; pesoG += g; minutos += m;
+      const k = pt.filamentoId || '_';
+      if (!consumo[k]) consumo[k] = { filamentoId: pt.filamentoId || '', g: 0, custo: 0 };
+      consumo[k].g += g;
+      consumo[k].custo += c;
+      return { nome: pt.nome || '', filamentoId: pt.filamentoId || '', qtd: q, pesoG: g, minutos: m, custo: c };
+    });
+    return { custo, pesoG, minutos, partes: det, consumo: Object.values(consumo) };
+  }
+
   function compor(input, ctx) {
     const p = Object.assign({
       tarifaKwh: 0, vidaUtilH: 5000, manutencaoH: 0, taxaFalha: 0,
@@ -109,12 +140,13 @@
     }, ctx.params || {});
     const eq = ctx.equipamento || {};
     const qtd = Math.max(1, Math.round(n(input.quantidade) || 1));
-    const horasPeca = n(input.minutos) / 60;
-    const pesoG = n(input.pesoG);
+    const mat = materiais(input, ctx);
+    const horasPeca = mat.minutos / 60;
+    const pesoG = mat.pesoG;
     const vida = n(eq.vidaUtil) || n(p.vidaUtilH);
 
-    // ---- custos de produção por peça
-    const material = pesoG * custoPorGrama(ctx.filamento);
+    // ---- custos de produção por peça (conjunto)
+    const material = mat.custo;
     const energia = (n(eq.potencia) / 1000) * horasPeca * n(p.tarifaKwh);
     const depreciacao = vida > 0 ? (n(eq.valor) / vida) * horasPeca : 0;
     const manutencao = n(p.manutencaoH) * horasPeca;
@@ -168,7 +200,9 @@
     return {
       erro,
       quantidade: qtd,
-      horasPeca, horasTotal, pesoTotalG: pesoG * qtd,
+      horasPeca, horasTotal, pesoPecaG: pesoG, pesoTotalG: pesoG * qtd,
+      partes: mat.partes,
+      consumo: mat.consumo.map((c) => ({ filamentoId: c.filamentoId, g: c.g * qtd, custo: c.custo * qtd })),
       unit: { material, energia, depreciacao, manutencao, fixo, falha, producao: producaoUnit },
       lote: {
         material: material * qtd, energia: energia * qtd, depreciacao: depreciacao * qtd,
@@ -252,7 +286,7 @@
     return pre + '-' + mat + '-' + String(Math.max(1, Math.round(n(seq)))).padStart(4, '0');
   }
 
-  const Calc = { normSku, gerarSku, n, r2, custoPorGrama, custoEmbalagem, custoFixoHora, faixaDoPreco, taxasCanal, precoPorMargem, compor, totaisOrcamento, validaDocumento };
+  const Calc = { partesDe, materiais, normSku, gerarSku, n, r2, custoPorGrama, custoEmbalagem, custoFixoHora, faixaDoPreco, taxasCanal, precoPorMargem, compor, totaisOrcamento, validaDocumento };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Calc;
   else root.Calc = Calc;
