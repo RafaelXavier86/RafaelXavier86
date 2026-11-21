@@ -192,7 +192,7 @@
     const render = () => {
       listEl.replaceChildren(...pecas.filter((p) => !q || p.nome.toLowerCase().includes(q)).map((p) => {
         const r = Precificacao.calcular(Object.assign({}, p.input, { quantidade: 1, frete: 0 }));
-        return h('button', { class: 'pick', onclick: () => { m.close(); editarComposicao(p.input, onOk, p.nome); } },
+        return h('button', { class: 'pick', onclick: () => { m.close(); editarComposicao(Object.assign({}, p.input, { pecaId: p.id }), onOk, p.nome); } },
           h('strong', null, p.nome), h('small', null, UI.brl(r.precoUnitario) + ' / un. · ' + UI.num(p.input.pesoG, 0) + ' g · ' + UI.horas(n(p.input.minutos) / 60)));
       }));
     };
@@ -210,7 +210,7 @@
     const save = (immediate) => {
       saveState.textContent = 'Salvando…';
       clearTimeout(tm);
-      const go = () => { o = Store.save('orcamentos', o); saveState.textContent = 'Salvo ✓'; };
+      const go = () => { o.atualizadoEm = Store.save('orcamentos', o).atualizadoEm; saveState.textContent = 'Salvo ✓'; };
       if (immediate) go(); else tm = setTimeout(go, 400);
     };
 
@@ -286,7 +286,7 @@
         tbody.append(h('tr', null,
           h('td', { class: 'center muted' }, String(idx + 1)),
           h('td', null, h('div', { class: 'with-thumb' }, Imagens.mini(it.imagemId, () => trocarImagem(it)),
-            h('div', null, desc, it.detalhe ? h('small', { class: 'muted block' }, it.detalhe) : null))),
+            h('div', null, desc, it.detalhe ? h('small', { class: 'muted block' }, it.detalhe) : null, atendimento(it)))),
           h('td', { class: 'num' }, UI.int(it.quantidade)),
           h('td', { class: 'num' }, UI.brl(it.valorUnit)),
           h('td', { class: 'num strong' }, UI.brl(it.valorTotal)),
@@ -313,6 +313,17 @@
           } },
         ],
       });
+    };
+    /** Escolha "Produzir" (consome filamento) ou "Do estoque" (produto acabado), para peças do catálogo. */
+    const atendimento = (it) => {
+      const peca = Estoque.pecaDoItem(it);
+      if (!peca) return null;
+      const saldo = (Estoque.saldosProduto()[peca.id] || { saldo: 0 }).saldo;
+      const sel = h('select', { class: 'atend', 'aria-label': 'Atendimento', onchange: (e) => { it.atendimento = e.target.value; save(true); renderItens(); } },
+        h('option', { value: 'produzir', selected: it.atendimento !== 'estoque' }, 'Produzir (consome filamento)'),
+        h('option', { value: 'estoque', selected: it.atendimento === 'estoque' }, 'Do estoque (saldo atual: ' + UI.int(saldo) + ' un.)'));
+      const falta = it.atendimento === 'estoque' && saldo < n(it.quantidade) && !Orcamentos.VENDIDO.includes(o.status);
+      return h('div', { class: 'atend-wrap' }, sel, falta ? h('small', { class: 'neg block' }, 'Estoque insuficiente para ' + UI.int(it.quantidade) + ' un.') : null);
     };
     const addItem = (it) => { o.itens.push(it); save(true); renderItens(); };
 

@@ -32,6 +32,11 @@
       faixas: [{ ate: null, comissao: 20, fixa: 4 }] },
   ];
 
+  function hojeISO() {
+    const d = new Date();
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+
   function defaults() {
     return {
       version: 1,
@@ -59,6 +64,8 @@
         canais: JSON.parse(JSON.stringify(CANAIS_PADRAO)),
         seqOrcamento: 0,
         seqSku: 0,
+        // vendas a partir desta data movimentam o estoque (vendas antigas não)
+        estoque: { inicio: hojeISO() },
         ultimoBackup: null,
       },
       collections: {},
@@ -83,6 +90,7 @@
       empresa: Object.assign({}, base.settings.empresa, s.empresa),
       params: Object.assign({}, base.settings.params, s.params),
       orcamento: Object.assign({}, base.settings.orcamento, s.orcamento),
+      estoque: Object.assign({}, base.settings.estoque, s.estoque),
       canais: (s.canais && s.canais.length) ? s.canais : base.settings.canais,
     });
     return data;
@@ -108,6 +116,7 @@
   }
 
   const clone = (o) => JSON.parse(JSON.stringify(o));
+  const hooks = {};
 
   const Store = {
     CANAIS_PADRAO,
@@ -127,12 +136,24 @@
       }
       record.atualizadoEm = now;
       persist();
+      (hooks[name] || []).forEach((fn) => fn(clone(record), 'save'));
       return clone(record);
     },
     remove(name, id) {
+      const antigo = col(name).find((r) => r.id === id);
       db.collections[name] = col(name).filter((r) => r.id !== id);
       persist();
+      if (antigo) (hooks[name] || []).forEach((fn) => fn(clone(antigo), 'remove'));
     },
+    /** Remove os registros que atendem ao filtro e acrescenta os novos, com uma única gravação. */
+    replaceWhere(name, pred, novos) {
+      const now = new Date().toISOString();
+      db.collections[name] = col(name).filter((r) => !pred(r))
+        .concat((novos || []).map((r) => Object.assign({ id: uid(), criadoEm: now }, clone(r))));
+      persist();
+    },
+    /** Executa fn(registro, 'save'|'remove') depois de cada gravação na coleção. */
+    on(name, fn) { (hooks[name] = hooks[name] || []).push(fn); },
     settings() { return clone(db.settings); },
     setSettings(patch) {
       db.settings = Object.assign(db.settings, clone(patch));

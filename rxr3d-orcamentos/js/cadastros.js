@@ -65,6 +65,7 @@
         { key: 'preco', label: 'Preço do rolo (com frete)', type: 'money', required: true, span: 1, help: 'Valor pago pelo rolo + frete rateado.' },
         { key: 'peso', label: 'Peso', type: 'num', required: true, default: 1, span: 1 },
         { key: 'unidade', label: 'Unidade', type: 'select', options: [['kg', 'kg'], ['g', 'g']], default: 'kg', span: 1 },
+        { key: 'estoqueMinRolos', label: 'Estoque mínimo', type: 'num', suffix: 'rolos', default: 1, span: 1, help: 'Abaixo disso o sistema avisa para repor.' },
       ],
       cols: [
         ['Material', (r) => h('strong', null, r.material)],

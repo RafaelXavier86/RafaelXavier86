@@ -216,12 +216,18 @@
     const lembrete = (todas.length && (dias === null || dias >= 7))
       ? h('div', { class: 'alert warn' }, dias === null ? 'Você ainda não fez nenhum backup. ' : 'Último backup há ' + dias + ' dias. ',
         h('a', { href: '#/config' }, 'Fazer backup agora'), ' — os dados ficam apenas neste navegador.')
-      : null;
+      : '';
 
-    wrap.append(UI.pageHead('Dashboard', 'Vendas = orçamentos aprovados ou concluídos, pela data da venda.', anoSel, mesSel), lembrete, body);
+    const rep = window.Estoque ? Estoque.alertasReposicao() : { fil: [], prod: [] };
+    const aviso = (rep.fil.length || rep.prod.length) ? h('div', { class: 'alert warn' }, h('strong', null, 'Estoque para repor: '),
+      rep.fil.length ? h('a', { href: '#/estoque-filamentos' }, rep.fil.length + ' filamento(s)') : null,
+      rep.fil.length && rep.prod.length ? ' e ' : null,
+      rep.prod.length ? h('a', { href: '#/estoque-produtos' }, rep.prod.length + ' produto(s)') : null,
+      ' abaixo do mínimo.') : '';
+    wrap.append(UI.pageHead('Dashboard', 'Vendas = orçamentos aprovados ou concluídos, pela data da venda.', anoSel, mesSel), aviso, lembrete, body);
     render();
     return wrap;
   }
 
-  window.Dashboard = { consumoFilamento, page, agregar, topProdutos };
+  window.Dashboard = { consumoItem, consumoFilamento, page, agregar, topProdutos };
 })();

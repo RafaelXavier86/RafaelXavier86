@@ -147,6 +147,11 @@
       ['Impostos', L.imposto],
       ['Frete repassado ao cliente', L.freteCobrado],
     ].filter((l) => Math.abs(l[1]) > 0.0049);
+    const faltas = window.Estoque ? Estoque.faltasFilamento(res.consumo) : [];
+    if (faltas.length) {
+      box.append(h('div', { class: 'alert warn' }, h('strong', null, 'Estoque insuficiente: '),
+        faltas.map((f) => Estoque.filNome(f.filamento) + ' — precisa ' + Estoque.fmtG(f.precisa) + ', há ' + Estoque.fmtG(f.saldo)).join(' · ')));
+    }
     box.append(h('details', { class: 'breakdown', open: true },
       h('summary', null, 'Composição do custo'),
       h('table', { class: 'table compact' },
@@ -280,6 +285,7 @@
     const get = () => {
       const inp = fromForm(UI.readForm(form, fs));
       inp.imagemId = imagemId;
+      if (input && input.pecaId) inp.pecaId = input.pecaId;
       inp.partes = partesEd.get();
       // resumo para listas e compatibilidade: 1º filamento, peso e tempo por peça
       inp.filamentoId = (inp.partes.find((p) => p.filamentoId) || {}).filamentoId || '';
@@ -310,6 +316,7 @@
       descricao: (prev && prev.descricao && prev.nomeOrig === input.nome) ? prev.descricao : input.nome,
       nomeOrig: input.nome,
       sku: input.sku || '',
+      pecaId: input.pecaId || (prev && prev.pecaId) || '',
       detalhe: [input.sku ? 'SKU ' + input.sku : '', materiaisTexto(input), nPartes(input) > 1 ? nPartes(input) + ' partes' : '', input.acabamento ? 'com acabamento' : '', input.projeto ? 'projeto customizado' : ''].filter(Boolean).join(' · '),
       quantidade: res.quantidade,
       valorUnit: res.precoTotal / res.quantidade,
@@ -353,6 +360,7 @@
       if (!ed.valid()) return;
       const { input, res } = ed.get();
       if (res.erro) { UI.toast(res.erro, 'bad'); return; }
+      if (peca) input.pecaId = peca.id;
       Orcamentos.escolherEAdicionar(toItem(input, res));
     };
     return h('div', null,
@@ -421,7 +429,7 @@
           h('td', { class: 'num' }, UI.pct(r.margemPct)),
           h('td', { class: 'row-actions' },
             h('a', { class: 'btn small', href: '#/precificacao/' + p.id }, 'Abrir'),
-            h('button', { class: 'btn small', onclick: () => Orcamentos.escolherEAdicionar(toItem(p.input, calcular(p.input))) }, 'Orçar'),
+            h('button', { class: 'btn small', onclick: () => { const inp = Object.assign({}, p.input, { pecaId: p.id }); Orcamentos.escolherEAdicionar(toItem(inp, calcular(inp))); } }, 'Orçar'),
             h('button', { class: 'btn small ghost-danger', onclick: () => UI.confirm('Excluir "' + p.nome + '" do catálogo?', () => { Store.remove('pecas', p.id); render(); }) }, 'Excluir'))));
       }
     };

@@ -4,6 +4,7 @@
 
   function load() {
     Store.reset();
+    Store.setSettings({ estoque: { inicio: UI.addDays(UI.today(), -45) } });
     const fil = [
       { material: 'PLA', fabricante: 'Voolt3D', cor: 'Preto', preco: 109.9, peso: 1, unidade: 'kg' },
       { material: 'PLA', fabricante: '3D Fila', cor: 'Branco', preco: 119.9, peso: 1, unidade: 'kg' },
@@ -55,6 +56,16 @@
       return p;
     }).map((p) => Store.save('pecas', { nome: p.nome, sku: p.sku, categoria: p.categoria, input: Object.assign({ quantidade: 1, pecasPorEmbalagem: 1, acabamento: false, projeto: false, frete: 0, freteRepassado: true, canalId: 'direto', precoManual: '' }, p) }));
 
+    // estoque: compra de 4 rolos de cada filamento e produção para estoque
+    Store.replaceWhere('movFilamento', () => false, fil.map((f) => ({
+      data: UI.addDays(UI.today(), -50), filamentoId: f.id, tipo: 'entrada', g: 4000, valor: f.preco * 4,
+      origem: 'manual:' + Store.uid(), ref: 'Entrada (compra) · 4 rolo(s)', obs: 'Estoque inicial (exemplo)',
+    })));
+    Estoque.registrarProducao({ pecaId: pecas[0].id, qtd: 8, data: UI.addDays(UI.today(), -30), descontar: true, obs: 'Lote para marketplaces' });
+    Estoque.registrarProducao({ pecaId: pecas[2].id, qtd: 60, data: UI.addDays(UI.today(), -30), descontar: true, obs: 'Lote para marketplaces' });
+    Store.save('pecas', Object.assign(Store.get('pecas', pecas[0].id), { estoqueMin: 3 }));
+    Store.save('pecas', Object.assign(Store.get('pecas', pecas[2].id), { estoqueMin: 20 }));
+
     // vendas e orçamentos espalhados nos últimos 10 meses
     let seed = 7;
     const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
@@ -79,8 +90,10 @@
       for (let j = 0; j < nItens; j++) {
         const p = pecas[Math.floor(rnd() * pecas.length)];
         const qtd = p.nome.startsWith('Chaveiro') ? 10 + Math.floor(rnd() * 3) * 10 : 1 + Math.floor(rnd() * 3);
-        const input = Object.assign({}, p.input, { quantidade: qtd, canalId });
-        itens.push(Precificacao.toItem(input, Precificacao.calcular(input)));
+        const input = Object.assign({}, p.input, { quantidade: qtd, canalId, pecaId: p.id });
+        const item = Precificacao.toItem(input, Precificacao.calcular(input));
+        if (canalId !== 'direto' && (p.id === pecas[0].id || p.id === pecas[2].id)) item.atendimento = 'estoque';
+        itens.push(item);
       }
       const recente = (hoje - d) / 864e5 < 12;
       const status = recente ? (rnd() < 0.5 ? 'aberto' : 'enviado') : (rnd() < 0.15 ? 'recusado' : (rnd() < 0.85 ? 'concluido' : 'aprovado'));

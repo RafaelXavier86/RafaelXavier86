@@ -399,3 +399,12 @@ code.sku, .sku {
 .partes-tab .affix span { padding: 0 5px; font-size: 11px; }
 .affix.invalid { border-color: var(--vermelho); background: #FFF6F6; }
 .partes-total { font-size: 12.5px; font-weight: 600; color: var(--rxr-preto); margin: 6px 0 4px; }
+
+/* ---------- estoque */
+.atend-wrap { margin-top: 4px; }
+.atend { height: 28px; width: auto; max-width: 100%; font-size: 12px; padding: 0 6px; background: var(--rxr-fundo-claro); }
+.min-in { width: 64px !important; height: 30px; text-align: right; }
+.estoque-inicio .inline-group input { width: auto; }
+.estoque-inicio .help { display: block; margin-top: 6px; }
+.acts { width: 1%; }
+.acts-grid { display: grid; grid-template-columns: auto auto; gap: 4px; }

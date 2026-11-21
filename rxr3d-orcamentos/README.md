@@ -78,6 +78,28 @@ Na precificação, o quadro **Materiais e partes da peça** tem uma linha por pa
 - Peças com materiais diferentes recebem SKU `RXR-MULT-0001`.
 - **Controle de gasto:** cada venda guarda os gramas usados de cada filamento. O Dashboard mostra o quadro **Consumo de filamento** do período, com kg, rolos equivalentes, custo do material e % do total.
 
+## Controle de estoque
+
+O menu **Estoque** tem duas telas. O saldo de cada item é a soma das suas movimentações, e cada uma pode ser vista em **Histórico**.
+
+### Filamentos em estoque
+- **Entrada (compra):** informe os rolos (ou g/kg) e, se quiser, o valor pago com frete. Marque *Atualizar o preço do rolo no cadastro* para que a precificação passe a usar o preço da última compra.
+- **Consumo automático:** ao marcar um orçamento como **Aprovado** ou **Concluído**, o sistema desconta os gramas de cada filamento usados nas peças. Mudar itens, quantidades ou status, ou excluir o orçamento, refaz o desconto automaticamente. Recusar ou voltar para "em aberto" devolve o filamento.
+- **Perda / descarte** (impressão falhou, filamento úmido) e **Ajuste de inventário**: informe o saldo contado na prateleira e o sistema lança a diferença.
+- Para cada filamento a tela mostra o saldo, os rolos equivalentes, a situação (OK / Repor / Zerado), o consumo dos últimos 30 dias, quanto tempo o saldo dura nesse ritmo e o valor em estoque.
+- O **estoque mínimo** (em rolos) fica no cadastro do filamento. Abaixo dele, o Dashboard e a tela de estoque avisam para repor.
+- Na precificação, se um filamento controlado não tiver saldo suficiente para a peça, aparece o aviso **Estoque insuficiente**.
+
+### Produtos acabados
+- **Registrar produção:** soma unidades ao estoque do produto (SKU) e, por padrão, desconta o filamento usado. A janela mostra quanto de cada filamento será necessário e o saldo atual.
+- **No orçamento**, cada item vindo do catálogo tem a opção **Produzir** (consome filamento ao aprovar) ou **Do estoque** (ao aprovar, sai do estoque de produto acabado, sem consumir filamento de novo). É o caso típico das vendas do Mercado Livre e da Shopee.
+- **Saída** (brinde, amostra, peça quebrada) e **Ajuste de inventário** (quantidade contada).
+- Para cada produto a tela mostra o saldo, o mínimo (editável na própria tabela), as vendas dos últimos 30 dias e o valor do estoque a preço de custo e a preço de venda.
+- Excluir uma produção no Histórico desfaz tudo: o produto sai do estoque e o filamento volta.
+
+### Início do controle
+Só movimentam o estoque as vendas com **data da venda a partir da data de início**, definida no rodapé das telas de estoque. Assim o histórico antigo não é descontado. Ao começar, lance o estoque atual como **Entrada** (filamentos) ou **Ajuste de inventário** (produtos).
+
 ## SKU (código das peças) e catálogo
 
 - Cada peça do catálogo tem um **SKU** e uma **categoria**. Se o campo SKU ficar em branco, o código é gerado ao salvar no formato **PREFIXO-MATERIAL-0001** (ex.: `RXR-PLA-0001`, `RXR-PETG-0004`). A numeração é sequencial e nunca repete. O prefixo pode ser alterado em *Parâmetros de custo*.
