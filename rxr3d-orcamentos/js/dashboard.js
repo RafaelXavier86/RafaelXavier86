@@ -219,11 +219,13 @@
       : '';
 
     const rep = window.Estoque ? Estoque.alertasReposicao() : { fil: [], prod: [] };
-    const aviso = (rep.fil.length || rep.prod.length) ? h('div', { class: 'alert warn' }, h('strong', null, 'Estoque para repor: '),
+    const partes = [
       rep.fil.length ? h('a', { href: '#/filamentos' }, rep.fil.length + ' filamento(s)') : null,
-      rep.fil.length && rep.prod.length ? ' e ' : null,
+      (rep.comp || []).length ? h('a', { href: '#/componentes' }, rep.comp.length + ' componente(s)') : null,
       rep.prod.length ? h('a', { href: '#/estoque-produtos' }, rep.prod.length + ' produto(s)') : null,
-      ' abaixo do mínimo.') : '';
+    ].filter(Boolean);
+    const aviso = partes.length ? h('div', { class: 'alert warn' }, h('strong', null, 'Estoque para repor: '),
+      partes.flatMap((a, i) => (i ? [i === partes.length - 1 ? ' e ' : ', ', a] : [a])), ' abaixo do mínimo.') : '';
     wrap.append(UI.pageHead('Dashboard', 'Vendas = orçamentos aprovados ou concluídos, pela data da venda.', anoSel, mesSel), aviso, lembrete, body);
     render();
     return wrap;

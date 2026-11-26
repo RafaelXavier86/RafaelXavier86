@@ -122,6 +122,28 @@
       sort: (a, b) => a.tipo.localeCompare(b.tipo, 'pt-BR'),
       label: (r) => r.tipo + (r.dimensao ? ' (' + r.dimensao + ')' : ''),
     },
+
+    componentes: {
+      titulo: 'Componentes', singular: 'componente', sub: 'Itens agregados às peças: tag NFC, parafusos, porcas, ímãs, LEDs…',
+      fields: [
+        { key: 'nome', label: 'Componente', required: true, span: 2, placeholder: 'ex.: Tag NFC NTAG215' },
+        { key: 'categoria', label: 'Categoria', span: 1, suggest: ['Eletrônicos', 'Fixação', 'Ímãs', 'Iluminação', 'Acabamento', 'Chaveiros e argolas', 'Embalagem extra', 'Outros'] },
+        { key: 'codigo', label: 'Código / referência', span: 1, placeholder: 'opcional' },
+        { key: 'unidade', label: 'Compro por', type: 'select', options: [['pct', 'Pacote'], ['un', 'Unidade'], ['cx', 'Caixa'], ['m', 'Metro'], ['rolo', 'Rolo']], default: 'pct', span: 1 },
+        { key: 'qtdPorUnidade', label: 'Quantidade que vem', type: 'num', default: 1, suffix: 'un.', span: 1, help: 'Ex.: pacote com 100 parafusos → 100.' },
+        { key: 'preco', label: 'Preço pago (com frete)', type: 'money', required: true, span: 1, help: 'Valor da embalagem de compra inteira.' },
+        { key: 'estoqueMin', label: 'Estoque mínimo', type: 'num', suffix: 'un.', default: 0, span: 1, help: '0 = sem aviso de reposição.' },
+        { key: 'obs', label: 'Observações', span: 4, placeholder: 'ex.: fornecedor, link de compra' },
+      ],
+      cols: [
+        ['Componente', (r) => h('strong', null, r.nome)],
+        ['Categoria', (r) => r.categoria || '—'],
+        ['Custo unitário', (r) => UI.brl(Calc.custoComponente(r)), 'num'],
+      ],
+      search: (r) => [r.nome, r.categoria, r.codigo].join(' '),
+      sort: (a, b) => a.nome.localeCompare(b.nome, 'pt-BR'),
+      label: (r) => r.nome + (r.codigo ? ' (' + r.codigo + ')' : ''),
+    },
   };
 
   function editar(name, record, onSaved) {

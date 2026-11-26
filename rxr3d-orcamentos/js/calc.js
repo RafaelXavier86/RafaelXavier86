@@ -133,6 +133,28 @@
     return { custo, pesoG, minutos, partes: det, consumo: Object.values(consumo) };
   }
 
+  /** Custo de um componente (valor da unidade de compra ÷ quantidade que vem nela). */
+  function custoComponente(c) {
+    if (!c) return 0;
+    const q = n(c.qtdPorUnidade) || 1;
+    return n(c.preco) / q;
+  }
+
+  /** Componentes da peça (tag NFC, parafusos, ímãs…): custo e quantidade por peça. */
+  function componentes(input, ctx) {
+    const lista = (input && Array.isArray(input.componentes) ? input.componentes : []).filter((c) => c && c.componenteId && n(c.qtd) > 0);
+    const mapa = ctx.componentes || {};
+    let custo = 0;
+    const det = lista.map((c) => {
+      const comp = mapa[c.componenteId] || null;
+      const unit = custoComponente(comp);
+      const total = unit * n(c.qtd);
+      custo += total;
+      return { componenteId: c.componenteId, qtd: n(c.qtd), custoUnit: unit, custo: total };
+    });
+    return { custo, itens: det };
+  }
+
   function compor(input, ctx) {
     const p = Object.assign({
       tarifaKwh: 0, vidaUtilH: 5000, manutencaoH: 0, taxaFalha: 0,
@@ -153,7 +175,8 @@
     const fixo = custoFixoHora(p) * horasPeca;
     const producaoSemFalha = material + energia + depreciacao + manutencao + fixo;
     const falha = producaoSemFalha * n(p.taxaFalha) / 100;
-    const producaoUnit = producaoSemFalha + falha;
+    const comp = componentes(input, ctx);
+    const producaoUnit = producaoSemFalha + falha + comp.custo;
 
     // ---- embalagem
     const ppe = Math.max(1, Math.round(n(input.pecasPorEmbalagem) || 1));
@@ -203,11 +226,13 @@
       horasPeca, horasTotal, pesoPecaG: pesoG, pesoTotalG: pesoG * qtd,
       partes: mat.partes,
       consumo: mat.consumo.map((c) => ({ filamentoId: c.filamentoId, g: c.g * qtd, custo: c.custo * qtd })),
-      unit: { material, energia, depreciacao, manutencao, fixo, falha, producao: producaoUnit },
+      componentes: comp.itens,
+      consumoComp: comp.itens.map((c) => ({ componenteId: c.componenteId, qtd: c.qtd * qtd, custo: c.custo * qtd })),
+      unit: { material, energia, depreciacao, manutencao, fixo, falha, componentes: comp.custo, producao: producaoUnit },
       lote: {
         material: material * qtd, energia: energia * qtd, depreciacao: depreciacao * qtd,
         manutencao: manutencao * qtd, fixo: fixo * qtd, falha: falha * qtd,
-        producao: producaoUnit * qtd, embalagem, qtdEmbalagens, acabamento, projeto,
+        producao: producaoUnit * qtd, componentes: comp.custo * qtd, embalagem, qtdEmbalagens, acabamento, projeto,
         frete, freteAbsorvido, freteCobrado,
         comissao: tx.comissao * qtd, taxaFixa: tx.fixa * qtd, taxasPlataforma, imposto,
       },
@@ -286,7 +311,7 @@
     return pre + '-' + mat + '-' + String(Math.max(1, Math.round(n(seq)))).padStart(4, '0');
   }
 
-  const Calc = { partesDe, materiais, normSku, gerarSku, n, r2, custoPorGrama, custoEmbalagem, custoFixoHora, faixaDoPreco, taxasCanal, precoPorMargem, compor, totaisOrcamento, validaDocumento };
+  const Calc = { custoComponente, componentes, partesDe, materiais, normSku, gerarSku, n, r2, custoPorGrama, custoEmbalagem, custoFixoHora, faixaDoPreco, taxasCanal, precoPorMargem, compor, totaisOrcamento, validaDocumento };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = Calc;
   else root.Calc = Calc;

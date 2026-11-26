@@ -6,7 +6,7 @@
   const NAV = [
     { group: null, items: [['#/dashboard', 'Dashboard', '▦']] },
     { group: 'Precificação', items: [['#/precificacao', 'Calcular preço', '＄'], ['#/pecas', 'Catálogo de peças', '◫']] },
-    { group: 'Estoque', items: [['#/filamentos', 'Filamentos', '◉'], ['#/estoque-produtos', 'Produtos acabados', '▤']] },
+    { group: 'Estoque', items: [['#/filamentos', 'Filamentos', '◉'], ['#/componentes', 'Componentes', '⊕'], ['#/estoque-produtos', 'Produtos acabados', '▤']] },
     { group: 'Vendas', items: [['#/orcamentos', 'Orçamentos', '≡'], ['#/clientes', 'Clientes', '☺']] },
     { group: 'Custos', items: [['#/equipamentos', 'Equipamentos', '⎙'], ['#/embalagens', 'Embalagens', '▣'], ['#/parametros', 'Parâmetros de custo', '⚙']] },
     { group: 'Sistema', items: [['#/marketplaces', 'Marketplaces', '⇄'], ['#/config', 'Configurações e backup', '⛁']] },
@@ -20,6 +20,7 @@
       case 'pecas': return Precificacao.catalogo();
       case 'filamentos': case 'estoque-filamentos': return Estoque.filamentosPage();
       case 'estoque-produtos': return Estoque.produtosPage();
+      case 'componentes': return Estoque.componentesPage();
       case 'orcamentos': return id ? Orcamentos.editor(id) : Orcamentos.lista();
       case 'clientes': case 'equipamentos': case 'embalagens': return Cadastros.page(base);
       case 'parametros': return Config.parametros();

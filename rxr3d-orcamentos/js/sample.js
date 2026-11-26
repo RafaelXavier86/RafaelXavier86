@@ -29,19 +29,28 @@
       { nome: 'Shopee (vendas)', telefone: '', documento: '', email: '', cidade: '', uf: '' },
     ].map((c) => Store.save('clientes', c));
 
-    const cats = { 'Suporte de headset': 'Games', 'Vaso geométrico': 'Decoração', 'Chaveiro personalizado': 'Brindes', 'Engrenagem PETG (reposição)': 'Peças técnicas', 'Organizador de mesa': 'Organização', 'Capa TPU para controle': 'Games', 'Letreiro 3D multipartes': 'Decoração' };
+    const comps = [
+      { nome: 'Tag NFC NTAG215', categoria: 'Eletrônicos', unidade: 'pct', qtdPorUnidade: 10, preco: 25, estoqueMin: 5 },
+      { nome: 'Parafuso M3 x 10 mm', categoria: 'Fixação', unidade: 'pct', qtdPorUnidade: 100, preco: 12, estoqueMin: 20 },
+      { nome: 'Porca M3', categoria: 'Fixação', unidade: 'pct', qtdPorUnidade: 100, preco: 8, estoqueMin: 20 },
+      { nome: 'Ímã de neodímio 10 x 2 mm', categoria: 'Ímãs', unidade: 'pct', qtdPorUnidade: 50, preco: 30, estoqueMin: 10 },
+      { nome: 'Argola para chaveiro 25 mm', categoria: 'Chaveiros e argolas', unidade: 'pct', qtdPorUnidade: 100, preco: 18, estoqueMin: 30 },
+    ].map((c) => Store.save('componentes', c));
+    const cats = { 'Suporte de headset': 'Games', 'Vaso geométrico': 'Decoração', 'Chaveiro personalizado': 'Brindes', 'Engrenagem PETG (reposição)': 'Peças técnicas', 'Organizador de mesa': 'Organização', 'Capa TPU para controle': 'Games', 'Letreiro 3D multipartes': 'Decoração', 'Chaveiro NFC (cartão de visita)': 'Brindes' };
     const pecas = [
       { nome: 'Suporte de headset', filamentoId: fil[0].id, equipamentoId: eq[0].id, pesoG: 85, minutos: 210, embalagemId: emb[0].id, margem: 45 },
       { nome: 'Vaso geométrico', filamentoId: fil[4].id, equipamentoId: eq[0].id, pesoG: 120, minutos: 300, acabamento: true, embalagemId: emb[2].id, margem: 50 },
-      { nome: 'Chaveiro personalizado', filamentoId: fil[1].id, equipamentoId: eq[1].id, pesoG: 8, minutos: 25, projeto: true, embalagemId: emb[1].id, pecasPorEmbalagem: 10, margem: 60 },
+      { nome: 'Chaveiro personalizado', componentes: [{ componenteId: comps[4].id, qtd: 1 }], filamentoId: fil[1].id, equipamentoId: eq[1].id, pesoG: 8, minutos: 25, projeto: true, embalagemId: emb[1].id, pecasPorEmbalagem: 10, margem: 60 },
       { nome: 'Engrenagem PETG (reposição)', filamentoId: fil[2].id, equipamentoId: eq[0].id, pesoG: 45, minutos: 150, projeto: true, margem: 50 },
       { nome: 'Organizador de mesa', filamentoId: fil[0].id, equipamentoId: eq[1].id, pesoG: 210, minutos: 540, embalagemId: emb[0].id, margem: 40 },
-      { nome: 'Letreiro 3D multipartes', equipamentoId: eq[0].id, margem: 45, acabamento: true, projeto: true, embalagemId: emb[2].id,
+      { nome: 'Letreiro 3D multipartes', componentes: [{ componenteId: comps[1].id, qtd: 4 }, { componenteId: comps[2].id, qtd: 4 }], equipamentoId: eq[0].id, margem: 45, acabamento: true, projeto: true, embalagemId: emb[2].id,
         partes: [
           { nome: 'Letras', filamentoId: fil[1].id, pesoG: 22, minutos: 50, qtd: 6 },
           { nome: 'Contorno das letras', filamentoId: fil[0].id, pesoG: 9, minutos: 0, qtd: 6 },
           { nome: 'Base', filamentoId: fil[2].id, pesoG: 140, minutos: 260, qtd: 1 },
         ] },
+      { nome: 'Chaveiro NFC (cartão de visita)', filamentoId: fil[0].id, equipamentoId: eq[0].id, pesoG: 9, minutos: 30, margem: 55, projeto: true, embalagemId: emb[1].id,
+        componentes: [{ componenteId: comps[0].id, qtd: 1 }, { componenteId: comps[4].id, qtd: 1 }] },
       { nome: 'Capa TPU para controle', filamentoId: fil[3].id, equipamentoId: eq[0].id, pesoG: 35, minutos: 120, embalagemId: emb[1].id, margem: 45 },
     ].map((p) => {
       if (p.partes) {
@@ -60,6 +69,10 @@
     Store.replaceWhere('movFilamento', () => false, fil.map((f) => ({
       data: UI.addDays(UI.today(), -50), filamentoId: f.id, tipo: 'entrada', g: 4000, valor: f.preco * 4,
       origem: 'manual:' + Store.uid(), ref: 'Entrada (compra) · 4 rolo(s)', obs: 'Estoque inicial (exemplo)',
+    })));
+    Store.replaceWhere('movComponente', () => false, comps.map((c, i) => ({
+      data: UI.addDays(UI.today(), -50), componenteId: c.id, tipo: 'entrada', qtd: c.qtdPorUnidade * (i === 0 ? 2 : 1), valor: c.preco * (i === 0 ? 2 : 1),
+      origem: 'manual:' + Store.uid(), ref: 'Entrada (compra)', obs: 'Estoque inicial (exemplo)',
     })));
     Estoque.registrarProducao({ pecaId: pecas[0].id, qtd: 8, data: UI.addDays(UI.today(), -30), descontar: true, obs: 'Lote para marketplaces' });
     Estoque.registrarProducao({ pecaId: pecas[2].id, qtd: 60, data: UI.addDays(UI.today(), -30), descontar: true, obs: 'Lote para marketplaces' });

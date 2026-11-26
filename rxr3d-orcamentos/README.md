@@ -25,6 +25,7 @@ Funciona **direto no navegador e sem internet**. Não precisa instalar nada nem 
 | **Clientes** | Nome, telefone/WhatsApp, CPF/CNPJ (validado), e-mail e endereço completo. O endereço é preenchido automaticamente pelo CEP quando há internet. |
 | **Filamentos** | Em *Estoque*: material, fabricante, cor, **preço do rolo com frete incluso**, peso e unidade, junto com o saldo em estoque. O sistema calcula o custo por grama. |
 | **Equipamentos** | Marca, modelo, potência e valor de compra, com vida útil opcional. Mostra o custo de energia e a depreciação por hora. |
+| **Componentes** | Em *Estoque*: tag NFC, parafusos, ímãs etc., com custo por unidade (mesmo comprando em pacote), estoque e estoque mínimo. São usados na estrutura das peças. |
 | **Embalagens** | Tipo, dimensão, unidade, quantidade por unidade (ex.: pacote com 50) e valor. |
 | **Parâmetros de custo** | Tarifa de energia (R$/kWh), vida útil padrão, manutenção/h, taxa de perdas, custos fixos mensais rateados por hora, imposto, % de acabamento e de projeto, margem padrão, validade e condições do orçamento. |
 | **Marketplaces** | Comissão %, taxa fixa por faixa de preço e teto de comissão de cada canal. Todos os valores são editáveis, e você pode criar novos canais. |
@@ -101,6 +102,15 @@ Cadastro, preço e estoque ficam numa tela só (**Estoque → Filamentos**). Na 
 
 ### Início do controle
 Só movimentam o estoque as vendas com **data da venda a partir da data de início**, definida no rodapé das telas de estoque. Assim o histórico antigo não é descontado. Ao começar, lance o estoque atual como **Entrada** (filamentos) ou **Ajuste de inventário** (produtos).
+
+## Componentes e estrutura do produto
+
+Para produtos que levam algo além de filamento (tag NFC, parafusos, porcas, arruelas, ímãs, LEDs, argolas…):
+
+1. **Estoque → Componentes → Entrada (compra):** escolha **+ Novo componente**, informe o nome, a categoria, como compra (ex.: pacote com 100), quantos pacotes e o valor pago. O sistema calcula o **custo por unidade** (ex.: R$ 12,00 ÷ 100 = R$ 0,12 por parafuso) e lança o estoque. Use **+ Cadastrar sem estoque** para só cadastrar.
+2. **Na precificação**, abaixo das partes impressas, o quadro **Componentes** monta a estrutura da peça: adicione quantos componentes quiser, com a quantidade por peça. O custo entra no custo da peça (sem a taxa de perdas, que vale só para a impressão) e aparece linha a linha na *Composição do custo*.
+3. **Produtos customizados:** no orçamento, clique em **Editar** no item para acrescentar ou tirar componentes só daquele orçamento. O catálogo continua como estava.
+4. **Estoque:** ao aprovar o orçamento (item "Produzir") ou registrar uma produção, os componentes saem do estoque junto com o filamento. Itens atendidos "Do estoque" não consomem de novo. A tela mostra saldo, estoque mínimo (editável na tabela), consumo de 30 dias e valor em estoque. Abaixo do mínimo, o Dashboard avisa.
 
 ## SKU (código das peças) e catálogo
 

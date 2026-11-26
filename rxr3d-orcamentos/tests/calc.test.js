@@ -167,3 +167,20 @@ test('formato antigo (um material) continua igual', () => {
   close(a.precoUnitario, b.precoUnitario);
   close(a.precoUnitario, 24.8);
 });
+
+test('componentes (tag NFC, parafusos) entram no custo da peça, sem taxa de falha', () => {
+  const comps = {
+    nfc: { preco: 25, qtdPorUnidade: 10 },     // R$ 2,50 cada
+    paraf: { preco: 12, qtdPorUnidade: 100 },  // R$ 0,12 cada
+  };
+  const p = Object.assign({}, params, { taxaFalha: 10 });
+  const base = Calc.compor({ pesoG: 100, quantidade: 3, margem: 0 }, { filamento, equipamento, canal: direto, params: p });
+  const r = Calc.compor({ pesoG: 100, quantidade: 3, margem: 0, componentes: [{ componenteId: 'nfc', qtd: 1 }, { componenteId: 'paraf', qtd: 4 }, { componenteId: 'paraf', qtd: 0 }] },
+    { filamento, equipamento, canal: direto, params: p, componentes: comps });
+  close(r.unit.componentes, 2.98);
+  close(r.custoTotal - base.custoTotal, 2.98 * 3);
+  close(r.lote.componentes, 8.94);
+  assert.strictEqual(r.consumoComp.length, 2);
+  close(r.consumoComp.find((c) => c.componenteId === 'paraf').qtd, 12);
+  close(Calc.custoComponente({ preco: 12, qtdPorUnidade: 100 }), 0.12);
+});

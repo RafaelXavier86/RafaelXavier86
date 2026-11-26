@@ -92,6 +92,7 @@
     return {
       filamento: input.filamentoId ? Store.get('filamentos', input.filamentoId) : null,
       filamentos: Object.fromEntries(Store.all('filamentos').map((f) => [f.id, f])),
+      componentes: Object.fromEntries(Store.all('componentes').map((c) => [c.id, c])),
       equipamento: input.equipamentoId ? Store.get('equipamentos', input.equipamentoId) : null,
       embalagem: input.embalagemId ? Store.get('embalagens', input.embalagemId) : null,
       canal: s.canais.find((c) => c.id === cid) || null,
@@ -138,6 +139,7 @@
       ['Manutenção', L.manutencao],
       ['Custos fixos (rateio)', L.fixo],
       ['Perdas / falhas', L.falha],
+      ...(res.componentes || []).map((c) => { const cp = Store.get('componentes', c.componenteId); return ['Componente · ' + (cp ? cp.nome : '?'), c.custo * res.quantidade, UI.num(c.qtd * res.quantidade, c.qtd % 1 ? 2 : 0) + ' un.']; }),
       ['Embalagem', L.embalagem, L.qtdEmbalagens ? L.qtdEmbalagens + ' un.' : ''],
       ['Acabamento', L.acabamento],
       ['Projeto customizado', L.projeto],
@@ -148,9 +150,12 @@
       ['Frete repassado ao cliente', L.freteCobrado],
     ].filter((l) => Math.abs(l[1]) > 0.0049);
     const faltas = window.Estoque ? Estoque.faltasFilamento(res.consumo) : [];
-    if (faltas.length) {
+    const faltasC = window.Estoque ? Estoque.faltasComponente(res.consumoComp) : [];
+    if (faltas.length || faltasC.length) {
       box.append(h('div', { class: 'alert warn' }, h('strong', null, 'Estoque insuficiente: '),
-        faltas.map((f) => Estoque.filNome(f.filamento) + ' — precisa ' + Estoque.fmtG(f.precisa) + ', há ' + Estoque.fmtG(f.saldo)).join(' · ')));
+        faltas.map((f) => Estoque.filNome(f.filamento) + ' — precisa ' + Estoque.fmtG(f.precisa) + ', há ' + Estoque.fmtG(f.saldo))
+          .concat(faltasC.map((f) => (f.componente ? f.componente.nome : '?') + ' — precisa ' + UI.num(f.precisa, 0) + ' un., há ' + UI.num(f.saldo, 0)))
+          .join(' · ')));
     }
     box.append(h('details', { class: 'breakdown', open: true },
       h('summary', null, 'Composição do custo'),
@@ -282,6 +287,75 @@
     return { el, get, valid };
   }
 
+  /** Quadro de componentes: itens agregados à peça (tag NFC, parafuso, ímã…) e quantidade por peça. */
+  function componentesEditor(iniciais) {
+    const tbody = h('tbody');
+    const totalEl = h('div', { class: 'partes-total' });
+    const lista = () => {
+      const sc = window.Estoque ? Estoque.saldosComponente() : {};
+      return [['', '— componente —']].concat(Store.all('componentes').sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map((c) => [c.id,
+        Cadastros.label('componentes', c) + ' · ' + UI.brl(Calc.custoComponente(c)) + '/un.' + (sc[c.id] && sc[c.id].movs ? ' (' + UI.int(sc[c.id].saldo) + ' em estoque)' : '')]));
+    };
+    const vazio = h('tr', { class: 'vazio' }, h('td', { colspan: 4, class: 'muted' }, 'Nenhum componente. Use "+ Adicionar componente" para tag NFC, parafusos, ímãs etc.'));
+    const custoLinha = (tr) => {
+      const c = Store.get('componentes', tr.querySelector('.cp-id').value);
+      tr.querySelector('.cp-custo').textContent = c ? UI.brl(Calc.custoComponente(c) * n(tr.querySelector('.cp-qtd').value)) : '—';
+    };
+    const linhas = () => [...tbody.querySelectorAll('tr:not(.vazio)')];
+    const addLinha = (cp) => {
+      vazio.remove();
+      cp = cp || {};
+      const tr = h('tr', null,
+        h('td', null, h('select', { class: 'cp-id', 'aria-label': 'Componente' }, lista().map(([v, l]) => h('option', { value: v, selected: v === (cp.componenteId || '') }, l)))),
+        h('td', null, h('div', { class: 'affix' }, h('input', { type: 'text', inputmode: 'decimal', class: 'cp-qtd', value: UI.inNum(cp.qtd || 1) }), h('span', null, 'por peça'))),
+        h('td', { class: 'num cp-custo' }, '—'),
+        h('td', null, h('button', { type: 'button', class: 'btn-icon', 'aria-label': 'Remover componente', title: 'Remover', onclick: () => {
+          tr.remove();
+          if (!linhas().length) tbody.append(vazio);
+          tbody.dispatchEvent(new Event('input', { bubbles: true }));
+        } }, '✕')));
+      tbody.append(tr);
+      custoLinha(tr);
+      return tr;
+    };
+    const get = () => linhas().map((tr) => ({ componenteId: tr.querySelector('.cp-id').value, qtd: n(tr.querySelector('.cp-qtd').value) }))
+      .filter((c) => c.componenteId && c.qtd > 0);
+    const atualiza = () => {
+      linhas().forEach(custoLinha);
+      const tot = get().reduce((s, c) => s + Calc.custoComponente(Store.get('componentes', c.componenteId)) * c.qtd, 0);
+      totalEl.textContent = get().length ? 'Componentes por peça: ' + UI.brl(tot) : '';
+    };
+    (iniciais || []).forEach(addLinha);
+    if (!linhas().length) tbody.append(vazio);
+    tbody.addEventListener('input', atualiza);
+    tbody.addEventListener('change', atualiza);
+    atualiza();
+    const recarregar = (novo) => {
+      const l = lista();
+      tbody.querySelectorAll('.cp-id').forEach((sel) => {
+        const atual = sel.value;
+        sel.replaceChildren(...l.map(([v, t]) => h('option', { value: v, selected: v === atual }, t)));
+      });
+      if (novo) {
+        const livre = [...tbody.querySelectorAll('.cp-id')].find((s) => !s.value) || addLinha({}).querySelector('.cp-id');
+        livre.value = novo.id;
+      }
+      tbody.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const el = h('div', { class: 'partes componentes span-4' },
+      h('div', { class: 'partes-head' },
+        h('label', null, 'Componentes (opcional)'),
+        h('div', { class: 'actions' },
+          h('button', { type: 'button', class: 'btn small', onclick: () => Cadastros.editar('componentes', null, (c) => recarregar(c)) }, '+ Novo componente'),
+          h('button', { type: 'button', class: 'btn small', onclick: () => { addLinha({}).querySelector('.cp-id').focus(); atualiza(); } }, '+ Adicionar componente'))),
+      h('div', { class: 'table-wrap' }, h('table', { class: 'partes-tab comp-tab' },
+        h('thead', null, h('tr', null, ['Componente', 'Quantidade', 'Custo', ''].map((t) => h('th', null, t)))),
+        tbody)),
+      totalEl,
+      h('small', { class: 'help' }, 'O custo dos componentes entra no custo da peça (sem a taxa de perdas). Ao aprovar o orçamento ou registrar produção, eles saem do estoque.'));
+    return { el, get };
+  }
+
   /**
    * Monta o formulário de composição com resultado ao vivo.
    * Retorna { el, get(): {input,res}, valid() }.
@@ -296,11 +370,14 @@
     const partesIni = (input && (input.partes || input.filamentoId || input.pesoG)) ? Calc.partesDe(input) : [];
     const partesEd = partesEditor(partesIni);
     form.elements.categoria.closest('.field').after(partesEd.el);
+    const compEd = componentesEditor(input && input.componentes);
+    partesEd.el.after(compEd.el);
     const get = () => {
       const inp = fromForm(UI.readForm(form, fs));
       inp.imagemId = imagemId;
       if (input && input.pecaId) inp.pecaId = input.pecaId;
       inp.partes = partesEd.get();
+      inp.componentes = compEd.get();
       // resumo para listas e compatibilidade: 1º filamento, peso e tempo por peça
       inp.filamentoId = (inp.partes.find((p) => p.filamentoId) || {}).filamentoId || '';
       inp.pesoG = inp.partes.reduce((s, p) => s + p.pesoG * p.qtd, 0);
@@ -341,6 +418,7 @@
       pecas: res.quantidade,
       pesoG: res.pesoTotalG,
       consumo: res.consumo,
+      consumoComp: res.consumoComp || [],
       input,
       resumo: { precoUnitario: res.precoUnitario, custoUnitario: res.custoUnitario, margemPct: res.margemPct, markup: res.markup, lucroHora: res.lucroHora, canalId: input.canalId },
     });

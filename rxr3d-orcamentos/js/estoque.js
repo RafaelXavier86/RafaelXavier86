@@ -14,9 +14,14 @@
   const n = Calc.n;
   const MF = 'movFilamento';
   const MP = 'movProduto';
+  const MC = 'movComponente';
   const VENDIDO = ['aprovado', 'concluido'];
 
   const TIPOS_F = {
+    entrada: 'Entrada (compra)', 'consumo-venda': 'Consumo · venda', 'consumo-producao': 'Consumo · produção',
+    perda: 'Perda / descarte', ajuste: 'Ajuste de inventário',
+  };
+  const TIPOS_C = {
     entrada: 'Entrada (compra)', 'consumo-venda': 'Consumo · venda', 'consumo-producao': 'Consumo · produção',
     perda: 'Perda / descarte', ajuste: 'Ajuste de inventário',
   };
@@ -51,7 +56,27 @@
     }
     return m;
   }
+  function saldosComponente() {
+    const m = {};
+    const desde = UI.addDays(UI.today(), -30);
+    for (const x of Store.all(MC)) {
+      const s = m[x.componenteId] || (m[x.componenteId] = { saldo: 0, movs: 0, consumo30: 0 });
+      s.saldo += n(x.qtd);
+      s.movs++;
+      if (String(x.tipo).startsWith('consumo') && x.data >= desde) s.consumo30 -= n(x.qtd);
+    }
+    return m;
+  }
   const vazio = { saldo: 0, movs: 0, consumo30: 0, vendas30: 0 };
+  const fmtUn = (v) => UI.num(v, Math.abs(v % 1) > 0.001 ? 2 : 0) + ' un.';
+
+  /** Componentes usados por um item de orçamento (quantidade total do lote). */
+  function consumoCompItem(it) {
+    if (Array.isArray(it.consumoComp)) return it.consumoComp;
+    const lista = it.input && Array.isArray(it.input.componentes) ? it.input.componentes : [];
+    const q = n(it.quantidade) || 1;
+    return lista.filter((c) => c.componenteId && n(c.qtd)).map((c) => ({ componenteId: c.componenteId, qtd: n(c.qtd) * q }));
+  }
 
   function situacao(saldo, minimo, controlado) {
     if (!controlado && !minimo) return h('span', { class: 'badge st-aberto' }, 'Sem controle');
@@ -74,7 +99,7 @@
     const data = o.dataVenda || o.data || UI.today();
     const ativo = acao !== 'remove' && VENDIDO.includes(o.status) && (!inicio || data >= inicio);
     const ref = 'Orçamento nº ' + String(o.numero || 0).padStart(4, '0') + (o.cliente ? ' · ' + o.cliente.nome : '');
-    const mf = [], mp = [];
+    const mf = [], mp = [], mc = [];
     if (ativo) {
       for (const it of o.itens || []) {
         const peca = pecaDoItem(it);
@@ -84,13 +109,17 @@
           for (const c of Dashboard.consumoItem(it)) {
             if (c.filamentoId && n(c.g)) mf.push({ data, filamentoId: c.filamentoId, tipo: 'consumo-venda', g: -n(c.g), origem, ref: ref + ' · ' + it.descricao });
           }
+          for (const c of consumoCompItem(it)) {
+            if (c.componenteId && n(c.qtd)) mc.push({ data, componenteId: c.componenteId, tipo: 'consumo-venda', qtd: -n(c.qtd), origem, ref: ref + ' · ' + it.descricao });
+          }
         }
       }
     }
-    const tinha = Store.all(MF).some((r) => r.origem === origem) || Store.all(MP).some((r) => r.origem === origem);
-    if (!tinha && !mf.length && !mp.length) return;
+    const tinha = [MF, MP, MC].some((col) => Store.all(col).some((r) => r.origem === origem));
+    if (!tinha && !mf.length && !mp.length && !mc.length) return;
     Store.replaceWhere(MF, (r) => r.origem === origem, mf);
     Store.replaceWhere(MP, (r) => r.origem === origem, mp);
+    Store.replaceWhere(MC, (r) => r.origem === origem, mc);
   }
   Store.on('orcamentos', sincronizarOrcamento);
 
@@ -103,6 +132,10 @@
     const r = Precificacao.calcular(Object.assign({}, peca.input, { quantidade: qtd, frete: 0 }));
     return r.consumo.filter((c) => c.filamentoId && c.g);
   }
+  function consumoCompProducao(peca, qtd) {
+    const r = Precificacao.calcular(Object.assign({}, peca.input, { quantidade: qtd, frete: 0 }));
+    return (r.consumoComp || []).filter((c) => c.componenteId && c.qtd);
+  }
 
   function registrarProducao({ pecaId, qtd, data, descontar, obs }) {
     const peca = Store.get('pecas', pecaId);
@@ -111,6 +144,7 @@
     Store.replaceWhere(MP, () => false, [{ data, pecaId, tipo: 'producao', qtd, origem, ref, obs }]);
     if (descontar) {
       Store.replaceWhere(MF, () => false, consumoProducao(peca, qtd).map((c) => ({ data, filamentoId: c.filamentoId, tipo: 'consumo-producao', g: -c.g, origem, ref, obs })));
+      Store.replaceWhere(MC, () => false, consumoCompProducao(peca, qtd).map((c) => ({ data, componenteId: c.componenteId, tipo: 'consumo-producao', qtd: -c.qtd, origem, ref, obs })));
     }
   }
 
@@ -247,6 +281,18 @@
             return h('tr', null, h('td', null, filNome(Store.get('filamentos', c.filamentoId))), h('td', { class: 'num' }, fmtG(c.g)),
               h('td', { class: 'num ' + (falta ? 'neg' : '') }, s.movs ? fmtG(s.saldo) : 'sem controle'));
           }))));
+        const comps = consumoCompProducao(p, q);
+        if (comps.length) {
+          const sc = saldosComponente();
+          linhas.push(h('table', { class: 'table compact' },
+            h('thead', null, h('tr', null, h('th', null, 'Componente necessário'), h('th', { class: 'num' }, 'Precisa'), h('th', { class: 'num' }, 'Em estoque'))),
+            h('tbody', null, comps.map((c) => {
+              const s = sc[c.componenteId] || vazio;
+              const cp = Store.get('componentes', c.componenteId);
+              return h('tr', null, h('td', null, cp ? cp.nome : 'componente excluído'), h('td', { class: 'num' }, fmtUn(c.qtd)),
+                h('td', { class: 'num ' + (s.movs && s.saldo < c.qtd ? 'neg' : '') }, s.movs ? fmtUn(s.saldo) : 'sem controle'));
+            }))));
+        }
       }
       info.replaceChildren(...linhas);
     };
@@ -281,8 +327,8 @@
   // ---------------------------------------------------------------- histórico
   function historico(col, campo, id, titulo, onDone) {
     const qtdKey = col === MF ? 'g' : 'qtd';
-    const fmt = col === MF ? fmtG : (v) => UI.int(v) + ' un.';
-    const tipos = col === MF ? TIPOS_F : TIPOS_P;
+    const fmt = col === MF ? fmtG : fmtUn;
+    const tipos = col === MF ? TIPOS_F : col === MC ? TIPOS_C : TIPOS_P;
     const body = h('div');
     const render = () => {
       const movs = Store.all(col).filter((m) => m[campo] === id).sort((a, b) => (a.data + (a.criadoEm || '')).localeCompare(b.data + (b.criadoEm || '')));
@@ -301,7 +347,7 @@
             : h('button', { class: 'btn small ghost-danger', onclick: () => {
               const prod = String(m.origem).startsWith('prod:');
               UI.confirm(prod ? 'Excluir esta produção? O produto e o filamento consumido voltam ao saldo anterior.' : 'Excluir este lançamento?', () => {
-                if (prod) { Store.replaceWhere(MF, (r) => r.origem === m.origem, []); Store.replaceWhere(MP, (r) => r.origem === m.origem, []); }
+                if (prod) [MF, MP, MC].forEach((c2) => Store.replaceWhere(c2, (r) => r.origem === m.origem, []));
                 else Store.replaceWhere(col, (r) => r.id === m.id, []);
                 render(); onDone && onDone();
               });
@@ -470,16 +516,188 @@
       .map((c) => ({ filamento: Store.get('filamentos', c.filamentoId), precisa: c.g, saldo: sf[c.filamentoId].saldo }));
   }
 
+  function faltasComponente(consumoComp) {
+    const sc = saldosComponente();
+    return (consumoComp || []).filter((c) => c.componenteId && (sc[c.componenteId] || vazio).movs && (sc[c.componenteId] || vazio).saldo < c.qtd)
+      .map((c) => ({ componente: Store.get('componentes', c.componenteId), precisa: c.qtd, saldo: sc[c.componenteId].saldo }));
+  }
+
+  const compRepor = (c, s) => s.movs && s.saldo < Math.max(n(c.estoqueMin), 0.0001);
+
   function alertasReposicao() {
     const sf = saldosFilamento();
     const sp = saldosProduto();
+    const sc = saldosComponente();
     const fil = Store.all('filamentos').filter((f) => { const s = sf[f.id] || vazio; return s.movs && s.saldo < Math.max(minFil(f), 0.0001); });
     const prod = Store.all('pecas').filter((p) => n(p.estoqueMin) && (sp[p.id] || vazio).saldo < n(p.estoqueMin));
-    return { fil, prod };
+    const comp = Store.all('componentes').filter((c) => compRepor(c, sc[c.id] || vazio));
+    return { fil, prod, comp };
+  }
+
+  // ---------------------------------------------------------------- componentes: lançamentos e página
+  const CAMPOS_NOVO_C = ['nome', 'categoria', 'unidadeC', 'qtdPorUnidade'];
+
+  function modalComponente(tipo, componenteId, onDone) {
+    const comps = Store.all('componentes').sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    if (!comps.length && tipo !== 'entrada') { UI.toast('Cadastre os componentes primeiro.', 'warn'); return; }
+    const titulos = { entrada: 'Entrada de componente (compra)', perda: 'Perda / descarte de componente', ajuste: 'Ajuste de inventário' };
+    const opcoes = comps.map((c) => [c.id, Cadastros.label('componentes', c)]);
+    if (tipo === 'entrada') opcoes.push([NOVO, '+ Novo componente (cadastrar agora)']);
+    const defs = Cadastros.DEFS.componentes.fields;
+    const fs = [
+      { key: 'componenteId', label: 'Componente', type: 'select', options: opcoes, default: componenteId || (comps.length ? comps[0].id : NOVO), required: true, span: 3 },
+      { key: 'data', label: 'Data', type: 'date', default: UI.today(), span: 1 },
+    ];
+    if (tipo === 'entrada') {
+      fs.push(
+        { key: 'nome', label: 'Componente', span: 2, placeholder: 'ex.: Tag NFC NTAG215' },
+        { key: 'categoria', label: 'Categoria', span: 2, suggest: defs[1].suggest },
+        { key: 'unidadeC', label: 'Compro por', type: 'select', options: defs[3].options, default: 'pct', span: 2 },
+        { key: 'qtdPorUnidade', label: 'Quantidade que vem', type: 'num', suffix: 'un.', default: 1, span: 2, help: 'Ex.: pacote com 100 → 100.' });
+    }
+    fs.push(
+      { key: 'qtd', label: tipo === 'ajuste' ? 'Quantidade contada' : 'Quantidade', type: 'num', required: true, span: 2,
+        help: tipo === 'ajuste' ? 'Quantas unidades há de fato.' : null },
+      { key: 'unidade', label: 'Em', type: 'select', options: [['compra', 'Embalagens de compra (pacote, caixa…)'], ['un', 'Unidades']], default: tipo === 'entrada' ? 'compra' : 'un', span: 2 });
+    if (tipo === 'entrada') {
+      fs.push({ key: 'valor', label: 'Valor total pago (com frete)', type: 'money', span: 2, help: 'Define o custo usado na precificação.' });
+      fs.push({ key: 'atualizar', label: 'Atualizar o preço no cadastro', type: 'check', span: 2 });
+    }
+    fs.push({ key: 'obs', label: 'Observação', span: 4 });
+    const form = UI.form(fs, { atualizar: true });
+    const titulo = h('h4', { class: 'form-section' }, 'Dados do novo componente');
+    if (tipo === 'entrada') form.elements.nome.closest('.field').before(titulo);
+    const info = h('p', { class: 'help span-4' });
+    form.append(info);
+    const saldos = saldosComponente();
+    const ehNovo = () => form.elements.componenteId.value === NOVO;
+    const mostra = () => {
+      if (tipo === 'entrada') {
+        const novo = ehNovo();
+        titulo.hidden = !novo;
+        CAMPOS_NOVO_C.forEach((k) => { form.elements[k].closest('.field').hidden = !novo; });
+        form.elements.atualizar.closest('.field').hidden = novo;
+      }
+      const c = comps.find((x) => x.id === form.elements.componenteId.value);
+      info.textContent = c ? 'Saldo atual: ' + fmtUn((saldos[c.id] || vazio).saldo) + ' · embalagem de compra com ' + fmtUn(n(c.qtdPorUnidade) || 1) + ' · custo atual ' + UI.brl(Calc.custoComponente(c)) + '/un.'
+        : 'O componente será cadastrado com o custo por unidade calculado a partir desta compra.';
+    };
+    form.addEventListener('change', mostra);
+    mostra();
+    UI.modal(titulos[tipo], form, {
+      actions: [
+        { label: 'Cancelar', onClick: (cl) => cl() },
+        { label: 'Lançar', kind: 'primary', onClick: (cl) => {
+          if (!UI.validate(form, fs)) return;
+          const v = UI.readForm(form, fs);
+          let c;
+          if (tipo === 'entrada' && v.componenteId === NOVO) {
+            if (!v.nome) { form.elements.nome.classList.add('invalid'); UI.toast('Informe o nome do componente.', 'bad'); return; }
+            if (!(n(v.valor) > 0)) { form.elements.valor.closest('.affix').classList.add('invalid'); UI.toast('Informe o valor pago para calcular o custo.', 'bad'); return; }
+            const existente = comps.find((x) => x.nome.trim().toLowerCase() === v.nome.trim().toLowerCase());
+            if (existente) { c = existente; UI.toast('Esse componente já estava cadastrado; a entrada foi lançada nele.', 'warn'); }
+            else c = Store.save('componentes', { nome: v.nome, categoria: v.categoria, unidade: v.unidadeC, qtdPorUnidade: n(v.qtdPorUnidade) || 1, preco: 0, estoqueMin: 0 });
+            v.atualizar = true;
+          } else {
+            c = comps.find((x) => x.id === v.componenteId);
+          }
+          const pc = n(c.qtdPorUnidade) || 1;
+          const un = n(v.qtd) * (v.unidade === 'compra' ? pc : 1);
+          let mov = un;
+          if (tipo === 'perda') mov = -un;
+          if (tipo === 'ajuste') mov = un - (saldos[c.id] || vazio).saldo;
+          if (!mov && tipo !== 'ajuste') { UI.toast('Informe a quantidade.', 'bad'); return; }
+          if (!mov) { UI.toast('O saldo já confere — nada a ajustar.'); cl(); return; }
+          Store.replaceWhere(MC, () => false, [{ data: v.data || UI.today(), componenteId: c.id, tipo, qtd: mov, valor: n(v.valor) || '', origem: 'manual:' + Store.uid(),
+            ref: TIPOS_C[tipo] + (tipo === 'entrada' ? ' · ' + fmtUn(un) : ''), obs: v.obs }]);
+          if (tipo === 'entrada' && v.atualizar && n(v.valor) > 0 && un > 0) {
+            const preco = Calc.r2(n(v.valor) / un * pc);
+            Store.save('componentes', Object.assign({}, Store.get('componentes', c.id), { preco }));
+            UI.toast('Entrada lançada · custo: ' + UI.brl(preco / pc) + '/un.');
+          } else UI.toast('Lançamento registrado.');
+          cl();
+          onDone && onDone();
+        } },
+      ],
+    });
+  }
+
+  function excluirComponente(c, onDone) {
+    const usadoEm = Store.all('pecas').filter((p) => (p.input && p.input.componentes || []).some((x) => x.componenteId === c.id));
+    if (usadoEm.length) {
+      UI.toast('Não dá para excluir: usado em ' + usadoEm.length + ' peça(s) do catálogo (' + usadoEm.slice(0, 3).map((p) => p.nome).join(', ') + (usadoEm.length > 3 ? '…' : '') + ').', 'bad');
+      return;
+    }
+    UI.confirm('Excluir o componente "' + c.nome + '" e o histórico de estoque dele? Orçamentos já emitidos não mudam.', () => {
+      Store.remove('componentes', c.id);
+      Store.replaceWhere(MC, (m) => m.componenteId === c.id && !String(m.origem).startsWith('orc:'), []);
+      onDone && onDone();
+    });
+  }
+
+  function componentesPage() {
+    const wrap = h('div');
+    let q = '';
+    const render = () => {
+      const sc = saldosComponente();
+      const todos = Store.all('componentes').sort((a, b) => (a.categoria || '~').localeCompare(b.categoria || '~', 'pt-BR') || a.nome.localeCompare(b.nome, 'pt-BR'));
+      const lista = todos.filter((c) => !q || [c.nome, c.categoria, c.codigo].join(' ').toLowerCase().includes(q));
+      let valorTotal = 0;
+      const usos = {};
+      Store.all('pecas').forEach((p) => (p.input && p.input.componentes || []).forEach((x) => { usos[x.componenteId] = (usos[x.componenteId] || 0) + 1; }));
+      const rows = lista.map((c) => {
+        const s = sc[c.id] || vazio;
+        const cu = Calc.custoComponente(c);
+        const valor = Math.max(0, s.saldo) * cu;
+        valorTotal += valor;
+        const porDia = s.consumo30 / 30;
+        return h('tr', null,
+          h('td', null, h('strong', null, c.nome), h('small', { class: 'muted block' }, [c.categoria, c.codigo, usos[c.id] ? 'em ' + usos[c.id] + ' peça(s)' : ''].filter(Boolean).join(' · ') || '—')),
+          h('td', { class: 'num' }, UI.brl(cu), h('small', { class: 'muted block' }, UI.brl(c.preco) + ' / ' + (c.unidade || 'un') + (n(c.qtdPorUnidade) > 1 ? ' c/ ' + UI.int(c.qtdPorUnidade) : ''))),
+          h('td', { class: 'num' }, h('strong', { class: s.saldo < 0 ? 'neg' : '' }, s.movs ? fmtUn(s.saldo) : '—'), h('div', null, situacao(s.saldo, n(c.estoqueMin), s.movs > 0))),
+          h('td', { class: 'num' }, h('div', { class: 'affix min-rolos', title: 'Estoque mínimo (0 = sem aviso)' },
+            h('input', { type: 'text', inputmode: 'numeric', 'aria-label': 'Estoque mínimo', value: UI.inNum(c.estoqueMin || 0),
+              onchange: (e) => { Store.save('componentes', Object.assign(Store.get('componentes', c.id), { estoqueMin: Math.max(0, n(e.target.value)) })); render(); } }),
+            h('span', null, 'un.'))),
+          h('td', { class: 'num' }, s.consumo30 ? fmtUn(s.consumo30) : '—', porDia > 0 && s.saldo > 0 ? h('small', { class: 'muted block' }, 'dura ~' + UI.int(s.saldo / porDia) + ' dias') : null),
+          h('td', { class: 'num' }, s.movs ? UI.brl(valor) : '—'),
+          h('td', { class: 'acts' }, h('div', { class: 'acts-grid three' },
+            h('button', { class: 'btn small primary', onclick: () => modalComponente('entrada', c.id, render) }, 'Entrada'),
+            h('button', { class: 'btn small', onclick: () => modalComponente('ajuste', c.id, render) }, 'Ajuste'),
+            h('button', { class: 'btn small', onclick: () => modalComponente('perda', c.id, render) }, 'Perda'),
+            h('button', { class: 'btn small', onclick: () => historico(MC, 'componenteId', c.id, c.nome, render) }, 'Histórico'),
+            h('button', { class: 'btn small', onclick: () => Cadastros.editar('componentes', c, render) }, 'Editar'),
+            h('button', { class: 'btn small ghost-danger', onclick: () => excluirComponente(c, render) }, 'Excluir'))));
+      });
+      const repor = todos.filter((c) => compRepor(c, sc[c.id] || vazio));
+      const exportar = () => {
+        const linhas = [['Componente', 'Categoria', 'Código', 'Custo unitário', 'Saldo (un.)', 'Mínimo (un.)', 'Consumo 30 dias', 'Valor em estoque']];
+        todos.forEach((c) => { const s = sc[c.id] || vazio; linhas.push([c.nome, c.categoria || '', c.codigo || '', Calc.custoComponente(c), Calc.r2(s.saldo), n(c.estoqueMin), Calc.r2(s.consumo30), Calc.r2(Math.max(0, s.saldo) * Calc.custoComponente(c))]); });
+        UI.download('componentes_' + UI.today() + '.csv', UI.csv(linhas), 'text/csv');
+      };
+      const busca = h('input', { type: 'search', class: 'search', placeholder: 'Buscar componente, categoria ou código…', value: q, oninput: (e) => { q = e.target.value.toLowerCase(); render(); const el = wrap.querySelector('.search'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); } });
+      wrap.replaceChildren(
+        UI.pageHead('Componentes', 'Itens agregados às peças — tag NFC, parafusos, porcas, arruelas, ímãs, LEDs… Cadastro, custo e estoque.',
+          h('button', { class: 'btn', onclick: exportar }, 'Exportar CSV'),
+          h('button', { class: 'btn', onclick: () => Cadastros.editar('componentes', null, render) }, '+ Cadastrar sem estoque'),
+          h('button', { class: 'btn primary', onclick: () => modalComponente('entrada', null, render) }, '+ Entrada (compra)')),
+        repor.length ? h('div', { class: 'alert warn' }, h('strong', null, 'Repor: '), repor.map((c) => c.nome + ' (' + fmtUn((sc[c.id] || vazio).saldo) + ')').join(' · ')) : '',
+        h('div', { class: 'card' },
+          todos.length ? h('div', { class: 'toolbar' }, busca) : '',
+          todos.length ? h('div', { class: 'table-wrap' }, h('table', { class: 'table' },
+            h('thead', null, h('tr', null, ['Componente', 'Custo unitário', 'Saldo', 'Estoque mínimo', 'Consumo 30 dias', 'Valor em estoque', ''].map((t, i) => h('th', { class: i >= 1 && i <= 5 ? 'num' : null }, t)))),
+            h('tbody', null, rows.length ? rows : h('tr', null, h('td', { colspan: 7, class: 'muted center' }, 'Nada encontrado.'))),
+            h('tfoot', null, h('tr', null, h('td', { colspan: 5 }, 'Valor total em estoque (custo)'), h('td', { class: 'num' }, UI.brl(valorTotal)), h('td', null, '')))))
+            : UI.empty('Nenhum componente ainda. Lance a compra de um pacote (ex.: 100 parafusos M3): o componente é cadastrado junto.', h('button', { class: 'btn primary', onclick: () => modalComponente('entrada', null, render) }, '+ Entrada (compra)')),
+          h('p', { class: 'help' }, 'Para usar um componente numa peça, adicione-o no quadro "Componentes" da precificação. Ao aprovar o orçamento ou registrar produção, ele sai do estoque.')),
+        inicioCard(render));
+    };
+    render();
+    return wrap;
   }
 
   window.Estoque = {
-    filamentosPage, produtosPage, saldosFilamento, saldosProduto, pecaDoItem, faltasFilamento, alertasReposicao,
+    filamentosPage, produtosPage, componentesPage, saldosFilamento, saldosProduto, saldosComponente, pecaDoItem, faltasFilamento, faltasComponente, alertasReposicao,
     registrarProducao, ressincronizarTodos, fmtG, filNome,
   };
 })();

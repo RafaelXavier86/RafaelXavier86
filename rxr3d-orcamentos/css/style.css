@@ -413,3 +413,13 @@ code.sku, .sku {
 .min-rolos { width: 104px; margin-left: auto; }
 .min-rolos input { height: 30px; text-align: right; padding: 0 6px; }
 .min-rolos span { padding: 0 6px; font-size: 11px; }
+
+/* ---------- componentes */
+.componentes { margin-top: 0; }
+.comp-tab { min-width: 440px; }
+.comp-tab th:nth-child(1) { width: 58%; }
+.comp-tab th:nth-child(2) { width: 20%; }
+.comp-tab th:nth-child(3) { width: 16%; text-align: right; }
+.comp-tab th:nth-child(4) { width: 30px; }
+.comp-tab .cp-custo { font-size: 13px; color: var(--rxr-preto); }
+.comp-tab tr.vazio td { font-size: 12.5px; padding: 6px 4px; }
