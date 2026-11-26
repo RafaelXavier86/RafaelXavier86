@@ -50,7 +50,8 @@
       { key: 'sku', label: 'SKU (código)', span: 1, placeholder: 'automático', help: 'Em branco = gerado ao salvar no catálogo.' },
       { key: 'categoria', label: 'Categoria', span: 1, suggest: categorias(), placeholder: 'ex.: Decoração' },
       { key: 'equipamentoId', label: 'Equipamento', type: 'select', options: eqs, required: true, span: 2, default: eqs[1] ? eqs[1][0] : '' },
-      { key: 'quantidade', label: 'Quantidade', type: 'num', suffix: 'un.', default: 1, span: 1, help: 'Peças (ou conjuntos) a produzir.' },
+      { key: 'quantidade', label: 'Quantidade', type: 'num', suffix: 'un.', default: 1, span: 1, help: 'Total de peças do pedido.' },
+      { key: 'pecasPorImpressao', label: 'Peças por impressão', type: 'num', suffix: 'na mesa', default: 1, span: 1, help: 'Quantas cabem de uma vez na mesa. Lance peso e tempo da mesa inteira.' },
       { key: 'acabamento', label: 'Acabamento (+' + UI.num(s.params.acabamentoPct, 0) + '% no custo)', type: 'select', options: SIMNAO, span: 2 },
       { key: 'projeto', label: 'Projeto customizado (+' + UI.num(s.params.projetoPct, 0) + '% no custo)', type: 'select', options: SIMNAO, span: 2 },
       { key: 'embalagemId', label: 'Embalagem', type: 'select', options: opts('embalagens', 'Sem embalagem'), span: 2 },
@@ -79,6 +80,7 @@
     return {
       nome: v.nome, sku: Calc.normSku(v.sku), categoria: (v.categoria || '').trim(), equipamentoId: v.equipamentoId, embalagemId: v.embalagemId,
       quantidade: Math.max(1, Math.round(n(v.quantidade) || 1)),
+      pecasPorImpressao: Math.max(1, Math.round(n(v.pecasPorImpressao) || 1)),
       acabamento: v.acabamento === 'sim', projeto: v.projeto === 'sim',
       pecasPorEmbalagem: Math.max(1, Math.round(n(v.pecasPorEmbalagem) || 1)),
       margem: n(v.margem), frete: n(v.frete), freteRepassado: v.freteModo !== 'absorvido',
@@ -120,7 +122,8 @@
         h('strong', null, UI.brl(res.precoUnitario)),
         h('small', null, (q > 1 ? q + ' peças: ' + UI.brl(res.precoVendaPecas || res.precoUnitario * q) + ' · ' : '') +
           (res.lote.freteCobrado ? 'frete ' + UI.brl(res.lote.freteCobrado) + ' · ' : '') + 'total ' + UI.brl(res.precoTotal) +
-          (canal ? ' · ' + canal.nome : ''))),
+          (canal ? ' · ' + canal.nome : '')),
+        res.pecasPorImpressao > 1 ? h('small', { class: 'mesa' }, res.pecasPorImpressao + ' peças por impressão · ' + res.impressoes + ' impressão(ões) para ' + q + ' peça(s) · ' + UI.horas(res.horasTotal) + ' de máquina') : null),
       h('div', { class: 'kpis' },
         kpi('Custo total', UI.brl(res.custoTotal)),
         kpi('Custo unitário', UI.brl(res.custoUnitario)),
@@ -198,7 +201,7 @@
    * Quadro de partes: cada linha é uma parte/cor da peça com filamento, peso,
    * tempo de impressão e quantidade por peça (conjunto).
    */
-  function partesEditor(partesIniciais) {
+  function partesEditor(partesIniciais, getPpi) {
     const filOpts = () => {
       const sf = window.Estoque ? Estoque.saldosFilamento() : {};
       return opts('filamentos', '— filamento —').map(([id, l]) => [id, l + (id && sf[id] && sf[id].movs ? ' (' + Estoque.fmtG(sf[id].saldo) + ')' : '')]);
@@ -241,7 +244,10 @@
       const g = ps.reduce((s, p) => s + p.pesoG * p.qtd, 0);
       const min = ps.reduce((s, p) => s + p.minutos * p.qtd, 0);
       const pecas = ps.reduce((s, p) => s + p.qtd, 0);
-      totalEl.textContent = 'Por peça/conjunto: ' + UI.num(g, 0) + ' g · ' + UI.horas(min / 60) + ' de impressão · ' + pecas + ' parte(s) impressa(s)';
+      const ppi = getPpi ? getPpi() : 1;
+      totalEl.textContent = ppi > 1
+        ? 'Mesa com ' + ppi + ' peças: ' + UI.num(g, 0) + ' g · ' + UI.horas(min / 60) + '  →  por peça: ' + UI.num(g / ppi, 1) + ' g · ' + UI.horas(min / ppi / 60)
+        : 'Por peça/conjunto: ' + UI.num(g, 0) + ' g · ' + UI.horas(min / 60) + ' de impressão · ' + pecas + ' parte(s) impressa(s)';
     };
     const valid = () => {
       let ok = true;
@@ -283,8 +289,8 @@
         tbody)),
       totalEl,
       h('small', { class: 'help' }, 'Peso e tempo de cada parte conforme o fatiador. "Qtd" = quantas vezes essa parte é impressa por peça/conjunto. ',
-        'Impressão multicor de uma vez (AMS): lance o tempo só na linha principal e, nas outras cores, apenas o peso gasto (inclua a purga).'));
-    return { el, get, valid };
+        'Impressão multicor de uma vez (AMS): lance o tempo só na linha principal e, nas outras cores, apenas o peso gasto (inclua a purga). Várias peças na mesma impressão? Lance peso e tempo da mesa inteira e informe "Peças por impressão" abaixo.'));
+    return { el, get, valid, atualizaTotal };
   }
 
   /** Quadro de componentes: itens agregados à peça (tag NFC, parafuso, ímã…) e quantidade por peça. */
@@ -368,7 +374,7 @@
     let imagemId = (input && input.imagemId) || '';
     const imgField = Imagens.campo(imagemId, (id) => { imagemId = id; });
     const partesIni = (input && (input.partes || input.filamentoId || input.pesoG)) ? Calc.partesDe(input) : [];
-    const partesEd = partesEditor(partesIni);
+    const partesEd = partesEditor(partesIni, () => Math.max(1, Math.round(n(form.elements.pecasPorImpressao.value) || 1)));
     form.elements.categoria.closest('.field').after(partesEd.el);
     const compEd = componentesEditor(input && input.componentes);
     partesEd.el.after(compEd.el);
@@ -380,11 +386,12 @@
       inp.componentes = compEd.get();
       // resumo para listas e compatibilidade: 1º filamento, peso e tempo por peça
       inp.filamentoId = (inp.partes.find((p) => p.filamentoId) || {}).filamentoId || '';
-      inp.pesoG = inp.partes.reduce((s, p) => s + p.pesoG * p.qtd, 0);
-      inp.minutos = inp.partes.reduce((s, p) => s + p.minutos * p.qtd, 0);
+      inp.pesoG = inp.partes.reduce((s, p) => s + p.pesoG * p.qtd, 0) / inp.pecasPorImpressao;
+      inp.minutos = inp.partes.reduce((s, p) => s + p.minutos * p.qtd, 0) / inp.pecasPorImpressao;
       return { input: inp, res: calcular(inp) };
     };
     const update = () => {
+      partesEd.atualizaTotal();
       const { input: inp, res } = get();
       out.replaceChildren(resultado(inp, res));
       if (comparar) cmp.replaceChildren(comparativo(inp));

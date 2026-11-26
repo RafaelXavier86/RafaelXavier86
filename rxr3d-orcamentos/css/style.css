@@ -423,3 +423,4 @@ code.sku, .sku {
 .comp-tab th:nth-child(4) { width: 30px; }
 .comp-tab .cp-custo { font-size: 13px; color: var(--rxr-preto); }
 .comp-tab tr.vazio td { font-size: 12.5px; padding: 6px 4px; }
+.price-hero small.mesa { display: block; margin-top: 4px; color: var(--rxr-laranja); font-weight: 600; }

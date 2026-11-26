@@ -184,3 +184,22 @@ test('componentes (tag NFC, parafusos) entram no custo da peça, sem taxa de fal
   close(r.consumoComp.find((c) => c.componenteId === 'paraf').qtd, 12);
   close(Calc.custoComponente({ preco: 12, qtdPorUnidade: 100 }), 0.12);
 });
+
+test('várias peças por impressão: peso e tempo da mesa divididos por peça; componentes por peça', () => {
+  const comps = { nfc: { preco: 34, qtdPorUnidade: 50 } }; // 0,68 cada
+  // mesa com 8 bottons: 80 g e 8 h no fatiador
+  const mesa = Calc.compor({ pesoG: 80, minutos: 480, quantidade: 8, pecasPorImpressao: 8, margem: 0, componentes: [{ componenteId: 'nfc', qtd: 1 }] },
+    { filamento, equipamento, canal: direto, params, componentes: comps });
+  const uma = Calc.compor({ pesoG: 10, minutos: 60, quantidade: 8, margem: 0, componentes: [{ componenteId: 'nfc', qtd: 1 }] },
+    { filamento, equipamento, canal: direto, params, componentes: comps });
+  close(mesa.custoTotal, uma.custoTotal);
+  close(mesa.pesoPecaG, 10);
+  close(mesa.horasPeca, 1);
+  close(mesa.horasTotal, 8);
+  assert.strictEqual(mesa.impressoes, 1);
+  close(mesa.consumo[0].g, 80);
+  close(mesa.consumoComp[0].qtd, 8);
+  const pedido20 = Calc.compor({ pesoG: 80, minutos: 480, quantidade: 20, pecasPorImpressao: 8, margem: 0 }, { filamento, equipamento, canal: direto, params });
+  assert.strictEqual(pedido20.impressoes, 3);
+  close(pedido20.pesoTotalG, 200);
+});

@@ -103,6 +103,17 @@ Cadastro, preço e estoque ficam numa tela só (**Estoque → Filamentos**). Na 
 ### Início do controle
 Só movimentam o estoque as vendas com **data da venda a partir da data de início**, definida no rodapé das telas de estoque. Assim o histórico antigo não é descontado. Ao começar, lance o estoque atual como **Entrada** (filamentos) ou **Ajuste de inventário** (produtos).
 
+## Várias peças na mesma impressão (mesa cheia)
+
+Quando cabem várias peças iguais na mesa (ex.: 8 bottons de uma vez):
+
+1. No quadro de partes, lance o **peso e o tempo da mesa inteira**, como o fatiador mostra (ex.: 49,34 g e 4h10 para as 8).
+2. Em **Peças por impressão**, informe quantas cabem (ex.: 8).
+3. Em **Quantidade**, informe o total de peças do pedido.
+4. Os **componentes** continuam **por peça** (1 tag NFC por botton).
+
+O sistema divide filamento, tempo, energia, depreciação, manutenção e custos fixos pelas peças da mesa. No exemplo, cada botton fica com 6,2 g e 31 min. Abaixo do preço aparece quantas impressões o pedido exige; um pedido de 20 bottons com 8 por mesa precisa de 3 impressões. O tempo de máquina é proporcional às peças, então a última mesa, que leva menos peças, não é cobrada como cheia. O estoque também é baixado por peça.
+
 ## Componentes e estrutura do produto
 
 Para produtos que levam algo além de filamento (tag NFC, parafusos, porcas, arruelas, ímãs, LEDs, argolas…):

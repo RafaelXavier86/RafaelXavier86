@@ -193,7 +193,7 @@
       listEl.replaceChildren(...pecas.filter((p) => !q || p.nome.toLowerCase().includes(q)).map((p) => {
         const r = Precificacao.calcular(Object.assign({}, p.input, { quantidade: 1, frete: 0 }));
         return h('button', { class: 'pick', onclick: () => { m.close(); editarComposicao(Object.assign({}, p.input, { pecaId: p.id }), onOk, p.nome); } },
-          h('strong', null, p.nome), h('small', null, UI.brl(r.precoUnitario) + ' / un. · ' + UI.num(p.input.pesoG, 0) + ' g · ' + UI.horas(n(p.input.minutos) / 60)));
+          h('strong', null, p.nome), h('small', null, UI.brl(r.precoUnitario) + ' / un. · ' + UI.num(r.pesoPecaG, 0) + ' g · ' + UI.horas(r.horasPeca) + (r.pecasPorImpressao > 1 ? ' · ' + r.pecasPorImpressao + ' por mesa' : '')));
       }));
     };
     render();

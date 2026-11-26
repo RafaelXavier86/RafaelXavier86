@@ -162,7 +162,14 @@
     }, ctx.params || {});
     const eq = ctx.equipamento || {};
     const qtd = Math.max(1, Math.round(n(input.quantidade) || 1));
+    // Peso e tempo informados são da mesa inteira; com várias peças por impressão, divide por peça.
+    const ppi = Math.max(1, Math.round(n(input.pecasPorImpressao) || 1));
     const mat = materiais(input, ctx);
+    if (ppi > 1) {
+      mat.custo /= ppi; mat.pesoG /= ppi; mat.minutos /= ppi;
+      mat.partes.forEach((pt) => { pt.pesoG /= ppi; pt.minutos /= ppi; pt.custo /= ppi; });
+      mat.consumo.forEach((c) => { c.g /= ppi; c.custo /= ppi; });
+    }
     const horasPeca = mat.minutos / 60;
     const pesoG = mat.pesoG;
     const vida = n(eq.vidaUtil) || n(p.vidaUtilH);
@@ -224,6 +231,7 @@
       erro,
       quantidade: qtd,
       horasPeca, horasTotal, pesoPecaG: pesoG, pesoTotalG: pesoG * qtd,
+      pecasPorImpressao: ppi, impressoes: Math.ceil(qtd / ppi),
       partes: mat.partes,
       consumo: mat.consumo.map((c) => ({ filamentoId: c.filamentoId, g: c.g * qtd, custo: c.custo * qtd })),
       componentes: comp.itens,
